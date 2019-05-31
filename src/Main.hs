@@ -10,10 +10,8 @@ import Data.Aeson
 import Data.Text (Text)
 import GHC.Generics
 import Network.Wai
-import Network.Wai.Handler.Warp
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Logger (withStdoutLogger)
-import Servant
 import Servant
 import Servant.API
 

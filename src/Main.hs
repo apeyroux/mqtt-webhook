@@ -10,7 +10,7 @@ import Data.Aeson
 import Data.Text (Text)
 import GHC.Generics
 import Network.Wai
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.Warp
 import Network.Wai.Logger (withStdoutLogger)
 import Servant
 import Servant.API
@@ -40,9 +40,11 @@ mqttWebHook = Proxy
 
 whrOk :: Maybe Text -> MqttClient -> Handler MqttHookResponse
 whrOk (Just "auth_on_register") c = do
+  liftIO $ print "on_regiserer"
   liftIO $ print c
   return $ MqttHookResponse "ok"
 whrOk (Just "auth_on_subscribe") c = do
+  liftIO $ print "on_subscribe"
   liftIO $ print c
   return $ MqttHookResponse "ok"
 whrOk _ _ = return $ MqttHookResponse "next"

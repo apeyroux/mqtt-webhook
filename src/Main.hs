@@ -8,12 +8,15 @@ module Main where
 import Control.Monad.Trans (liftIO)
 import Data.Aeson
 import Data.Text (Text)
+import Data.Text as T
 import GHC.Generics
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Logger (withStdoutLogger)
 import Servant
 import Servant.API
+
+data Authentification = Auth | Ident | Anonymous deriving Show
 
 data MqttClient = MqttClient {
   mcUsername :: Text
@@ -37,13 +40,34 @@ instance ToJSON MqttHookResponse where
 
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
 
+mc2auth :: MqttClient -> Authentification
+mc2auth c = case splitOn ":" (mcUsername c) of
+  ["imei", _, _] -> Ident
+  ["auth", _, _] -> Auth
+  _ -> Anonymous
+
 mqttWebHook :: Proxy MqttWebHook
 mqttWebHook = Proxy
 
 whrOk :: Maybe Text -> MqttClient -> Handler MqttHookResponse
 whrOk (Just "auth_on_register") c = do
-  liftIO $ print "on_regiserer"
-  liftIO $ print c
+  case mc2auth c of
+    Ident -> do
+      liftIO $ do
+        print "IDENT on_regiserer"
+        print c
+      return $ MqttHookResponse "ok"
+    Auth -> do
+      liftIO $ do
+        print "AUTH on_regiserer"
+        print "TODO: Mettre dans un redis une clef login avec value neotoken et une ttl. si ttl alors 401"
+        print c
+      return $ MqttHookResponse "ok"
+    _ -> do
+      liftIO $ do
+        print "NO AUTH"
+        print c
+      return $ MqttHookResponse "next"
   return $ MqttHookResponse "ok"
 -- whrOk (Just "auth_on_subscribe") c = do
 --   liftIO $ print "on_subscribe"

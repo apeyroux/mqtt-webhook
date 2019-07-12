@@ -16,7 +16,7 @@ import Network.Wai.Logger (withStdoutLogger)
 import Servant
 import Servant.API
 
-data Authentification = Auth | Ident | Anonymous deriving Show
+data Authentification = Auth | Ident | Application | Anonymous deriving Show
 
 data MqttClient = MqttClient {
   mcUsername :: Text
@@ -42,7 +42,11 @@ type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttC
 
 mc2auth :: MqttClient -> Authentification
 mc2auth c = case splitOn ":" (mcUsername c) of
-  ["imei", _, _] -> Ident
+  -- kk mais ok pour poc
+  ["neoparc"] -> case mcPassword c of
+    Just "neoparc" -> Application
+    _ ->  Anonymous
+  ["ident", _, _] -> Ident
   ["auth", _, _] -> Auth
   _ -> Anonymous
 
@@ -52,6 +56,9 @@ mqttWebHook = Proxy
 whrOk :: Maybe Text -> MqttClient -> Handler MqttHookResponse
 whrOk (Just "auth_on_register") c = do
   case mc2auth c of
+    Application -> do
+      liftIO $ print "hello application"
+      return $ MqttHookResponse "ok"
     Ident -> do
       liftIO $ do
         print "IDENT on_regiserer"
@@ -68,7 +75,6 @@ whrOk (Just "auth_on_register") c = do
         print "NO AUTH"
         print c
       return $ MqttHookResponse "next"
-  return $ MqttHookResponse "ok"
 -- whrOk (Just "auth_on_subscribe") c = do
 --   liftIO $ print "on_subscribe"
 --   liftIO $ print c

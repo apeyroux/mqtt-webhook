@@ -1,0 +1,24 @@
+#!/bin/env python
+
+from flask import Flask
+import click
+
+
+app = Flask(__name__)
+
+
+@app.route('/')
+def index():
+    return "mqtt-webhook"
+
+
+@click.command()
+@click.option('--port', default="5000", help='listen port')
+@click.option('--host', default="0.0.0.0", help='listen host')
+def runApp(port, host):
+    click.echo("start mqtt-webhook ws ...")
+    app.run(host=host, port=port)
+
+
+if __name__ == "__main__":
+    runApp()

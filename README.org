@@ -1,1 +1,18 @@
-python version
+#+TITLE: mqtt-webhook
+
+* Documentation
+
+** /auth
+
+#+begin_src http :pretty
+POST 127.0.0.1:5000/auth
+Content-Type: application/json
+
+{ "username": "auth:uid:xxx", "password": "thePass", "client_id": "cid" }
+#+end_src
+
+#+RESULTS:
+: {
+:   "message": "AUTH",
+:   "result": "ok"
+: }

@@ -1,15 +1,28 @@
 #!/bin/env python
 
-from flask import Flask
+from flask import (Flask,
+                   request,
+                   jsonify)
 import click
+from pampy import match, _
 
+NEOPARC = "NEOPARC"
+IDENT = "IDENT"
+AUTH = "AUTH"
+UNAUTH = "401"
 
 app = Flask(__name__)
 
 
-@app.route('/')
+@app.route('/auth', methods=['POST'])
 def index():
-    return "mqtt-webhook"
+    body = request.json
+    x = match(body['username'].split(':'),
+              ["neoparc", _, _], NEOPARC,
+              ["ident", _, _], IDENT,
+              ["auth", _, _], AUTH,
+              _, UNAUTH)
+    return jsonify({'result': 'ok', 'message': x})
 
 
 @click.command()

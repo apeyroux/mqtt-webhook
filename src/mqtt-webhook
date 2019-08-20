@@ -2,7 +2,8 @@
 
 from flask import (Flask,
                    request,
-                   jsonify)
+                   jsonify,
+                   abort)
 import click
 from pampy import match, _
 
@@ -17,12 +18,38 @@ app = Flask(__name__)
 @app.route('/auth', methods=['POST'])
 def index():
     body = request.json
-    x = match(body['username'].split(':'),
-              ["neoparc", _, _], NEOPARC,
-              ["ident", _, _], IDENT,
-              ["auth", _, _], AUTH,
-              _, UNAUTH)
-    return jsonify({'result': 'ok', 'message': x})
+    headers = request.headers
+
+    '''
+    Si le header vernemq-hook est un auth_on_register
+    '''
+    if "auth_on_register" == (headers['vernemq-hook']
+                              if 'vernemq-hook' in headers else None):
+
+        auth = match(
+            body['username'].split(':') if 'username' in body else "nothing",
+            ["neoparc", _, _], NEOPARC,
+            ["ident", _, _], IDENT,
+            ["auth", _, _], AUTH,
+            _, UNAUTH
+        )
+
+        if auth == NEOPARC:
+            app.logger.info("Auth {}".format(body))
+            return jsonify({'result': 'ok'})
+        elif auth == IDENT:
+            app.logger.info("Auth {}".format(body))
+            return jsonify({'result': 'ok'})
+        elif auth == AUTH:
+            app.logger.info("Auth {}".format(body))
+            return jsonify({'result': 'ok'})
+        else:
+            app.logger.info("Unauthorized")
+            abort(401)
+
+    # Autres cas (header not match)
+    else:
+        abort(400)
 
 
 @click.command()
@@ -30,7 +57,7 @@ def index():
 @click.option('--host', default="0.0.0.0", help='listen host')
 def runApp(port, host):
     click.echo("start mqtt-webhook ws ...")
-    app.run(host=host, port=port)
+    app.run(host=host, port=port, debug=True)
 
 
 if __name__ == "__main__":

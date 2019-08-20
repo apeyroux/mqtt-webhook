@@ -4,15 +4,105 @@
 
 ** /auth
 
+*** type neoparc
+
+Authentification de l'application neoparc
+
 #+begin_src http :pretty
 POST 127.0.0.1:5000/auth
 Content-Type: application/json
+Vernemq-Hook: auth_on_register
 
-{ "username": "auth:uid:xxx", "password": "thePass", "client_id": "cid" }
+{ "username": "neoparc:uid:xxx", "password": "thePass", "client_id": "cid" }
 #+end_src
 
 #+RESULTS:
 : {
-:   "message": "AUTH",
 :   "result": "ok"
 : }
+
+
+*** type auth (neotoken)
+
+#+begin_src http :pretty
+POST 127.0.0.1:5000/auth
+Content-Type: application/json
+Vernemq-Hook: auth_on_register
+
+{ "username": "auth:uid:xxx", "password": "unneotoken", "client_id": "cid" }
+#+end_src
+
+#+RESULTS:
+: {
+:   "result": "ok"
+: }
+
+*** type ident
+
+#+begin_src http :pretty
+POST 127.0.0.1:5000/auth
+Content-Type: application/json
+Vernemq-Hook: auth_on_register
+
+{ "username": "ident:uid:xxx", "password": "thePass", "client_id": "cid" }
+#+end_src
+
+#+RESULTS:
+: {
+:   "result": "ok"
+: }
+
+*** other
+
+#+begin_src http :pretty
+POST 127.0.0.1:5000/auth
+Content-Type: application/json
+Vernemq-Hook: auth_on_register
+
+{}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for HTML5 for Linux version 5.6.0">
+  <title>401 Unauthorized</title>
+</head>
+<body>
+  <h1>Unauthorized</h1>
+  <p>The server could not verify that you are authorized to access
+  the URL requested. You either supplied the wrong credentials
+  (e.g. a bad password), or your browser doesn't understand how to
+  supply the credentials required.</p>
+</body>
+</html>
+#+end_example
+
+Pas de *Vernemq-Hook: auth_on_register*
+
+#+begin_src http :pretty
+POST 127.0.0.1:5000/auth
+Content-Type: application/json
+
+{ "username": "nimportquoi", "password": "thePass", "client_id": "cid" }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for HTML5 for Linux version 5.6.0">
+  <title>400 Bad Request</title>
+</head>
+<body>
+  <h1>Bad Request</h1>
+  <p>The browser (or proxy) sent a request that this server could
+  not understand.</p>
+</body>
+</html>
+#+end_example

@@ -20,6 +20,9 @@ def index():
     body = request.json
     headers = request.headers
 
+    if body is None:
+        abort(400)
+
     '''
     Si le header vernemq-hook est un auth_on_register
     '''

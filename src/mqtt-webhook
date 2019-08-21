@@ -6,6 +6,7 @@ from flask import (Flask,
                    abort)
 import flask_monitoringdashboard as dashboard
 import click
+from collections.abc import Iterable
 from pampy import match, _
 
 # Const vars
@@ -36,7 +37,7 @@ def index():
                               if 'vernemq-hook' in headers else None):
 
         auth = match(
-            body['username'].split(':') if 'username' in body else "nothing",
+            body['username'].split(':') if "username" in (body if isinstance(body, Iterable) else {}) else "nothing",
             ["neoparc", _, _], NEOPARC,
             ["ident", _, _], IDENT,
             ["auth", _, _], AUTH,

@@ -1,5 +1,11 @@
 #+TITLE: mqtt-webhook
 
+* Build
+
+#+begin_src shell
+cd nix; pypi2nix -r ../requirements.txt -V3.7 -e setuptools_scm
+#+end_src
+
 * Documentation
 
 ** /auth

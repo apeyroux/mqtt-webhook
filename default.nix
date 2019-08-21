@@ -2,7 +2,7 @@ with import <nixpkgs> {};
 
 let
   version = "1.0";
-  srvProd = "10.0.0.1";
+  srvProd = "10.227.193.18";
   pypi2nix = (import ./nix/requirements.nix {}).packages;
   requirements = with python3Packages; [
       flask
@@ -13,8 +13,7 @@ let
 in rec {
   deploy = writeScriptBin "deploy-mqttwebhook" ''
 echo "=== DEPLOY IMG ==="
-scp ${docker} ${srvProd}:/tmp
-echo "=== LOAD IMG ==="
+cat ${docker} | ssh ${srvProd} docker load
   '';
   mqtt-webhook = python3Packages.buildPythonPackage {
     propagatedBuildInputs = requirements;

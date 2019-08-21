@@ -4,17 +4,23 @@ from flask import (Flask,
                    request,
                    jsonify,
                    abort)
+import flask_monitoringdashboard as dashboard
 import click
 from pampy import match, _
 
+# Const vars
 NEOPARC = "NEOPARC"
 IDENT = "IDENT"
 AUTH = "AUTH"
 UNAUTH = "401"
 
+# init flask (app)
 app = Flask(__name__)
+dashboard.bind(app)
 
-
+'''
+Definitions des routes
+'''
 @app.route('/auth', methods=['POST'])
 def index():
     body = request.json

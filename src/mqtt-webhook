@@ -56,9 +56,10 @@ def index():
 @click.command()
 @click.option('--port', default="5000", help='listen port')
 @click.option('--host', default="0.0.0.0", help='listen host')
-def runApp(port, host):
+@click.option('--debug', default=False, help='debug flask')
+def runApp(port=5000, host="0.0.0.0", debug=False):
     click.echo("start mqtt-webhook ws ...")
-    app.run(host=host, port=port, debug=True)
+    app.run(host=host, port=port, debug=debug)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 with import <nixpkgs> {};
 
 let
-  version = "1.0";
+  version = (builtins.fetchGit { url = ./.; ref = "HEAD"; }).shortRev;
   srvProd = "10.227.193.18";
   pypi2nix = (import ./nix/requirements.nix {}).packages;
   requirements = with python3Packages; [
@@ -11,7 +11,7 @@ let
   ];
   vmDebian = pkgs.vmTools.diskImageFuns.debian8x86_64 {};
 in rec {
-  deploy = writeScriptBin "deploy-mqttwebhook" ''
+  deploy = writeScriptBin "deploy-mqttwebhook-${version}" ''
 echo "=== DEPLOY IMG ==="
 cat ${docker} | ssh ${srvProd} docker load
   '';

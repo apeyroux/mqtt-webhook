@@ -45,7 +45,8 @@ def index():
             return jsonify({'result': 'ok'})
         else:
             app.logger.info("Unauthorized")
-            abort(401)
+            return jsonify({'result': 'next'})
+            # abort(401)
 
     # Autres cas (header not match)
     else:

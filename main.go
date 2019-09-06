@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -73,6 +74,8 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	pListen := flag.String("listen", ":8080", "Listen")
+	flag.Parse()
 	http.HandleFunc("/auth", webhookHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(*pListen, nil)
 }

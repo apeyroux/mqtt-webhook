@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -25,17 +26,16 @@ func checkAuthType(userName string, password string) int {
 		return 1
 	case "auth":
 		sPassword := strings.Split(password, ":")
-		// check si j'ai bien uid et token
 		if len(sPassword) != 2 {
 			return 0
 		}
-		// todo: caca
-		req, err := http.Get(fmt.Sprintf("http://neotoken.gendarmerie.fr/token/check/?uid=%s&token=%s", sPassword[0], sPassword[1]))
+		req, err := http.PostForm("http://neotoken.gendarmerie.fr/token/check/",
+			url.Values{"uid": {sPassword[0]}, "token": {sPassword[1]}})
 		if err != nil {
 			log.Printf("ERROR: %s", err)
 			return 0
 		}
-		if req.Request.Response.StatusCode != 200 {
+		if req.StatusCode != 200 {
 			return 0
 		}
 		return 2

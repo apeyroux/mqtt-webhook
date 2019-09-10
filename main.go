@@ -74,8 +74,14 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	pListen := flag.String("listen", ":8080", "Listen")
+	pListen := flag.String("listen", ":8080", "")
+	pNeoTokenWS := flag.String("neotoken-url",
+		"http://neotoken.gendarmerie.fr/token/check/",
+		"URL du point d'entrée du WS NeoToken")
 	flag.Parse()
+	log.Printf("Démarage du service")
+	log.Printf("Ecoute sur %s", *pListen)
+	log.Printf("Utilisation de %s comme ws neotoken", *pNeoTokenWS)
 	http.HandleFunc("/auth", webhookHandler)
 	http.ListenAndServe(*pListen, nil)
 }

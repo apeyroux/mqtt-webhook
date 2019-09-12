@@ -46,6 +46,16 @@ func checkAuthType(userName string, password string) int {
 	}
 }
 
+// Auth du Node qui permet du pub/sub
+func check88mph(login string, password string) bool {
+	// faire un fichier de conf
+	if(login == "88mph" && password == "88mph") {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -56,7 +66,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		sUserName := strings.Split(p.UserName, ":")
-		if len(sUserName) == 0 {
+		if len(sUserName) == 0 && false == check88mph(p.UserName, p.Password){
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 		if checkAuthType(sUserName[0], p.Password) != 0 {

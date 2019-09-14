@@ -4,7 +4,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate clap;
-
+use actix_web::client::Client;
 use actix_web::middleware::Logger;
 use actix_web::{
     error, middleware, web, App as WebApp, Error, HttpRequest, HttpResponse, HttpServer,
@@ -17,6 +17,7 @@ extern crate log;
 extern crate simplelog;
 use simplelog::*;
 use std::fs::File;
+extern crate reqwest;
 
 type IMEI = String;
 
@@ -89,15 +90,15 @@ fn login_to_auth(username: String, password: String) -> Result<Authentication, S
     }
 }
 
-fn auth_is_ok(auth: &Authentication) -> WebHookResult {
+fn auth_is_ok(auth: &Authentication) -> Result<WebHookResult, WebHookResult> {
     match auth {
-        Authentication::Token { .. } => WebHookResult::Failed,
-        Authentication::Ident { .. } => WebHookResult::Ok,
+        Authentication::Token { .. } => Ok(WebHookResult::Failed),
+        Authentication::Ident { .. } => Ok(WebHookResult::Ok),
         Authentication::Login {
             username: u,
             password: p,
-        } if u == "88mph" && p == "88mph" => WebHookResult::Ok,
-        _ => WebHookResult::Failed,
+        } if u == "88mph" && p == "88mph" => Ok(WebHookResult::Ok),
+        _ => Err(WebHookResult::Failed),
     }
 }
 
@@ -114,7 +115,7 @@ fn ws_auth(client: web::Json<WebHookPayload>, req: HttpRequest) -> HttpResponse 
                 clean_session: _,
             } => match login_to_auth(username, password) {
                 Ok(auth) => {
-                    if auth_is_ok(&auth) == WebHookResult::Ok {
+                    if auth_is_ok(&auth) == Ok(WebHookResult::Ok) {
                         info!("ok {:?}", auth);
                         HttpResponse::Ok().json(WebHookResult::Ok)
                     } else {
@@ -137,6 +138,22 @@ fn ws_auth(client: web::Json<WebHookPayload>, req: HttpRequest) -> HttpResponse 
 // MAIN
 //
 fn main() {
+    let request_url = format!(
+        "https://api.github.com/repos/{owner}/{repo}/stargazers",
+        owner = "rust-lang-nursery",
+        repo = "rust-cookbook"
+    );
+    println!("{}", request_url);
+    let mut response = reqwest::get(&request_url);
+    match response {
+        // Ok(response) if response.status().as_u16() == 200 => Ok(WebHookResult::Ok),
+        Ok(response) => {
+            println!("{:?}", response);
+            info!("{:?}", response);
+        }
+        _ => error!("to bad"),
+    }
+
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")
         .version("0.1")

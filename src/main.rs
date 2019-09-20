@@ -22,7 +22,7 @@ extern crate reqwest;
 type IMEI = String;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct WebHookPayload {
+struct WebHookAuthPayload {
     peer_addr: String,
     peer_port: i32,
     username: Option<String>,
@@ -92,7 +92,25 @@ fn login_to_auth(username: String, password: String) -> Result<Authentication, S
 
 fn auth_is_ok(auth: &Authentication) -> Result<WebHookResult, WebHookResult> {
     match auth {
-        Authentication::Token { .. } => Ok(WebHookResult::Failed),
+        Authentication::Token { imei, idtel, uid, token } => {
+            // todo: kk faire un param
+            let request_url = format!(
+                "http://neotoken.gendarmerie.fr/token/check/?uid={uid}&token={token}",
+                uid = uid,
+                token = token
+            );
+            let mut response = reqwest::get(&request_url);
+            match response {
+                Ok(response) if response.status().as_u16() == 200 => {
+                    Ok(WebHookResult::Ok)
+                },
+                Ok(_) => Err(WebHookResult::Failed),
+                Err(e) => {
+                    error!("to bad {:?}", e);
+                    Err(WebHookResult::Failed)
+                },
+            }
+        },
         Authentication::Ident { .. } => Ok(WebHookResult::Ok),
         Authentication::Login {
             username: u,
@@ -102,10 +120,10 @@ fn auth_is_ok(auth: &Authentication) -> Result<WebHookResult, WebHookResult> {
     }
 }
 
-fn ws_auth(client: web::Json<WebHookPayload>, req: HttpRequest) -> HttpResponse {
+fn ws_auth(client: web::Json<WebHookAuthPayload>, req: HttpRequest) -> HttpResponse {
     match req.headers().get("vernemq-hook") {
         Some(hv) if hv.to_str().unwrap() == "auth_on_register" => match client.into_inner() {
-            WebHookPayload {
+            WebHookAuthPayload {
                 peer_addr: _,
                 peer_port: _,
                 username: Some(username),
@@ -138,21 +156,6 @@ fn ws_auth(client: web::Json<WebHookPayload>, req: HttpRequest) -> HttpResponse 
 // MAIN
 //
 fn main() {
-    let request_url = format!(
-        "https://api.github.com/repos/{owner}/{repo}/stargazers",
-        owner = "rust-lang-nursery",
-        repo = "rust-cookbook"
-    );
-    println!("{}", request_url);
-    let mut response = reqwest::get(&request_url);
-    match response {
-        // Ok(response) if response.status().as_u16() == 200 => Ok(WebHookResult::Ok),
-        Ok(response) => {
-            println!("{:?}", response);
-            info!("{:?}", response);
-        }
-        _ => error!("to bad"),
-    }
 
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")

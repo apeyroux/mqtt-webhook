@@ -16,6 +16,5 @@ mosquitto_pub -u 88mph -P 88mph -t test -m ok -d
 
 
 ``` shell
-nix-shell
-PKG_CONFIG_ALLOW_CROSS=1 cargo build --target x86_64-unknown-linux-musl --release
+docker run --rm -it -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder:nightly-2019-09-05 cargo build --release
 ```

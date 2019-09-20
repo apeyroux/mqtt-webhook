@@ -1,7 +1,7 @@
 # Dev
 
 ``` shell
-docker run -it --rm -e "DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on" -e "DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO__HOOK=auth_on_register" -e "DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO__ENDPOINT=http://wh.px.io/auth" -p 1883:1883 erlio/docker-vernemq
+docker-compose up
 ```
 
 ``` shell
@@ -16,5 +16,6 @@ mosquitto_pub -u 88mph -P 88mph -t test -m ok -d
 
 
 ``` shell
-docker run --rm -it -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder:nightly-2019-09-05
+nix-shell
+PKG_CONFIG_ALLOW_CROSS=1 cargo build --target x86_64-unknown-linux-musl --release
 ```

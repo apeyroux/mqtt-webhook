@@ -1,16 +1,19 @@
+#![feature(bind_by_move_pattern_guards)]
+
 extern crate clap;
+extern crate log;
+extern crate reqwest;
 extern crate serde;
-use serde_json::json;
 extern crate serde_derive;
+extern crate simplelog;
+
 use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
 use clap::Arg;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 #[macro_use]
-extern crate log;
-extern crate simplelog;
 use simplelog::*;
 use std::fs::File;
-extern crate reqwest;
 
 type IMEI = String;
 
@@ -149,7 +152,9 @@ fn ws_auth_pub(client: web::Json<WebHookAuthPubPayload>, req: HttpRequest) -> Ht
                 username, topic, ..
             } => {
                 if topic.contains("wip") && username != "88mph" {
-                    HttpResponse::Ok().json(json!({"result": { "error": "Wiping is not possible with this ID." }}))
+                    HttpResponse::Ok().json(
+                        json!({"result": { "error": "Wiping is not possible with this ID." }}),
+                    )
                 } else {
                     HttpResponse::Ok().json(WebHookResult::Ok)
                 }
@@ -230,7 +235,7 @@ fn main() {
     ])
     .unwrap();
 
-    let _ =HttpServer::new(|| {
+    let _ = HttpServer::new(|| {
         WebApp::new()
             .data(web::JsonConfig::default().limit(4096))
             .service(web::resource("/auth").route(web::post().to(ws_auth)))

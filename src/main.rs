@@ -1,5 +1,6 @@
 extern crate clap;
 extern crate serde;
+use serde_json::json;
 extern crate serde_derive;
 use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
 use clap::Arg;
@@ -148,7 +149,7 @@ fn ws_auth_pub(client: web::Json<WebHookAuthPubPayload>, req: HttpRequest) -> Ht
                 username, topic, ..
             } => {
                 if topic.contains("wip") && username != "88mph" {
-                    HttpResponse::Ok().json(WebHookResult::Ok)
+                    HttpResponse::Ok().json(json!({"result": { "error": "Wiping is not possible with this ID." }}))
                 } else {
                     HttpResponse::Ok().json(WebHookResult::Ok)
                 }

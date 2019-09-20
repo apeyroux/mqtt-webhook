@@ -1,17 +1,9 @@
-#![feature(bind_by_move_pattern_guards)]
-
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
 extern crate clap;
-use actix_web::client::Client;
-use actix_web::middleware::Logger;
-use actix_web::{
-    error, middleware, web, App as WebApp, Error, HttpRequest, HttpResponse, HttpServer,
-};
-use clap::{App, Arg};
+extern crate serde;
+extern crate serde_derive;
+use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
+use clap::Arg;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 #[macro_use]
 extern crate log;
 extern crate simplelog;
@@ -30,6 +22,31 @@ struct WebHookAuthPayload {
     mountpoint: String,
     client_id: String,
     clean_session: bool,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct WebHookAuthSubPayload {
+    username: String,
+    mountpoint: String,
+    client_id: String,
+    topics: Vec<Topic>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct WebHookAuthPubPayload {
+    username: String,
+    mountpoint: String,
+    client_id: String,
+    qos: i32,
+    topic: String,
+    payload: String,
+    retain: bool,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct Topic {
+    topic: String,
+    qos: i32,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -56,6 +73,7 @@ enum Authentication {
 enum WebHookResult {
     Ok,
     Failed,
+    Next,
 }
 
 fn login_to_auth(username: String, password: String) -> Result<Authentication, String> {
@@ -92,36 +110,57 @@ fn login_to_auth(username: String, password: String) -> Result<Authentication, S
 
 fn auth_is_ok(auth: &Authentication) -> Result<WebHookResult, WebHookResult> {
     match auth {
-        Authentication::Token { imei, idtel, uid, token } => {
+        Authentication::Token { uid, token, .. } => {
             // todo: kk faire un param
             let request_url = format!(
                 "http://neotoken.gendarmerie.fr/token/check/?uid={uid}&token={token}",
                 uid = uid,
                 token = token
             );
-            let mut response = reqwest::get(&request_url);
+            let response = reqwest::get(&request_url);
             match response {
-                Ok(response) if response.status().as_u16() == 200 => {
-                    Ok(WebHookResult::Ok)
-                },
+                Ok(response) if response.status().as_u16() == 200 => Ok(WebHookResult::Ok),
                 Ok(_) => Err(WebHookResult::Failed),
                 Err(e) => {
                     error!("to bad {:?}", e);
                     Err(WebHookResult::Failed)
-                },
+                }
+            }
+        }
+        Authentication::Ident { .. } => Ok(WebHookResult::Ok),
+        Authentication::Login { username, password }
+            if username == "88mph" && password == "88mph" =>
+        {
+            Ok(WebHookResult::Ok)
+        }
+        _ => Err(WebHookResult::Next),
+    }
+}
+
+fn ws_auth_sub(_client: web::Json<WebHookAuthSubPayload>, _req: HttpRequest) -> HttpResponse {
+    HttpResponse::Ok().json(WebHookResult::Ok)
+}
+
+fn ws_auth_pub(client: web::Json<WebHookAuthPubPayload>, req: HttpRequest) -> HttpResponse {
+    match req.headers().get("vernemq-hook") {
+        Some(hv) if hv.to_str().unwrap() == "auth_on_publish" => match client.into_inner() {
+            WebHookAuthPubPayload {
+                username, topic, ..
+            } => {
+                if topic.contains("wip") && username != "88mph" {
+                    HttpResponse::Ok().json(WebHookResult::Ok)
+                } else {
+                    HttpResponse::Ok().json(WebHookResult::Ok)
+                }
             }
         },
-        Authentication::Ident { .. } => Ok(WebHookResult::Ok),
-        Authentication::Login {
-            username: u,
-            password: p,
-        } if u == "88mph" && p == "88mph" => Ok(WebHookResult::Ok),
-        _ => Err(WebHookResult::Failed),
+        _ => HttpResponse::Ok().json(WebHookResult::Ok), // mettre un 200 car vernemq connait pas le 401 sur le auth_sub
     }
 }
 
 fn ws_auth(client: web::Json<WebHookAuthPayload>, req: HttpRequest) -> HttpResponse {
     match req.headers().get("vernemq-hook") {
+        // auth_on_register
         Some(hv) if hv.to_str().unwrap() == "auth_on_register" => match client.into_inner() {
             WebHookAuthPayload {
                 peer_addr: _,
@@ -138,17 +177,18 @@ fn ws_auth(client: web::Json<WebHookAuthPayload>, req: HttpRequest) -> HttpRespo
                         HttpResponse::Ok().json(WebHookResult::Ok)
                     } else {
                         info!("ko {:?}", auth);
-                        HttpResponse::Forbidden().json(WebHookResult::Failed)
+                        HttpResponse::Ok().json(WebHookResult::Failed)
                     }
                 }
                 Err(err) => {
                     info!("ko {}", err);
-                    HttpResponse::Forbidden().json(WebHookResult::Failed)
+                    HttpResponse::Ok().json(WebHookResult::Failed)
                 }
             },
-            _ => HttpResponse::Forbidden().json(WebHookResult::Failed),
+            _ => HttpResponse::Ok().json(WebHookResult::Failed),
         },
-        _ => HttpResponse::Forbidden().json(WebHookResult::Failed), // <- send response
+        // todo: mettre le auth_on_publish ici
+        _ => HttpResponse::Ok().json(WebHookResult::Failed), // <- send response
     }
 }
 
@@ -156,7 +196,6 @@ fn ws_auth(client: web::Json<WebHookAuthPayload>, req: HttpRequest) -> HttpRespo
 // MAIN
 //
 fn main() {
-
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")
         .version("0.1")
@@ -190,10 +229,12 @@ fn main() {
     ])
     .unwrap();
 
-    HttpServer::new(|| {
+    let _ =HttpServer::new(|| {
         WebApp::new()
             .data(web::JsonConfig::default().limit(4096))
             .service(web::resource("/auth").route(web::post().to(ws_auth)))
+            .service(web::resource("/auth/pub").route(web::post().to(ws_auth_pub)))
+            .service(web::resource("/auth/sub").route(web::post().to(ws_auth_sub)))
     })
     .bind(listen)
     .unwrap()

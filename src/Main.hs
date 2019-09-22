@@ -38,7 +38,19 @@ data MqttHookResponse = MqttHookResponse {
 instance ToJSON MqttHookResponse where
   toJSON (MqttHookResponse msg) = object ["result" .= msg]
 
+data TokenCheckResponse = TokenCheckResponse {
+  tcrAuthentification :: Bool
+  , tcrUid :: Text
+  } deriving (Generic, Show)
+
+instance ToJSON TokenCheckResponse where
+  toJSON (TokenCheckResponse auth uid) = object ["authentification" .= auth, "uid" .= uid]
+
+instance FromJSON TokenCheckResponse where
+  parseJSON (Object v) = TokenCheckResponse <$> v .: "authentification" <*> v .: "uid"
+
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
+type NeoTokenAPI = "token" :> "check" :> Capture "uid" :> Capture "token" :> Get '[JSON] TokenCheckResponse
 
 mc2auth :: MqttClient -> Authentification
 mc2auth c = case splitOn ":" (mcUsername c) of

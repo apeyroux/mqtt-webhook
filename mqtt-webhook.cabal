@@ -19,12 +19,13 @@ executable mqtt-webhook
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , aeson
-                     , text
                      , bytestring
+                     , mtl
                      , optparse-applicative
                      , servant
+                     , servant-client
                      , servant-server
-                     , warp
-                     , wai-logger
+                     , text
                      , wai
-                     , mtl
+                     , wai-logger
+                     , warp

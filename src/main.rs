@@ -155,7 +155,7 @@ fn ws_auth_sub(_client: web::Json<WebHookAuthSubPayload>, _req: HttpRequest) -> 
 }
 
 fn ws_auth_pub(
-    cfg: web::Data<Mutex<Cfg>>,
+    _cfg: web::Data<Mutex<Cfg>>,
     client: web::Json<WebHookAuthPubPayload>,
     req: HttpRequest,
 ) -> HttpResponse {
@@ -195,7 +195,7 @@ fn ws_auth(
                 clean_session: _,
             } => match login_to_auth(username, password) {
                 Ok(auth) => {
-                    let mut cfg = cfg.lock().unwrap();
+                    let cfg = cfg.lock().unwrap();
                     if auth_is_ok(&auth, &cfg) == Ok(WebHookResult::Ok) {
                         info!("ok {:?}", auth);
                         HttpResponse::Ok().json(WebHookResult::Ok)

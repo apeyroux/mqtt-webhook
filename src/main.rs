@@ -166,7 +166,7 @@ fn ws_auth_pub(
             } => {
                 if topic.to_lowercase().contains("wip") && username != "88mph" {
                     HttpResponse::Ok().json(
-                        json!({"result": { "error": "Wiping is not possible with this ID." }}),
+                        json!({"result": { "error": "Wiping is not possible with this username." }}),
                     )
                 } else {
                     HttpResponse::Ok().json(WebHookResult::Ok)

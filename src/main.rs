@@ -1,6 +1,7 @@
 #![feature(bind_by_move_pattern_guards)]
 
 extern crate clap;
+#[macro_use]
 extern crate log;
 extern crate reqwest;
 extern crate serde;
@@ -11,7 +12,6 @@ use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
 use clap::Arg;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-#[macro_use]
 use simplelog::*;
 use std::fs::File;
 

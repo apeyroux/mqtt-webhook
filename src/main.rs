@@ -9,6 +9,7 @@ extern crate serde_derive;
 extern crate simplelog;
 
 use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
+use actix_web_prom::PrometheusMetrics;
 use clap::Arg;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -219,7 +220,8 @@ fn ws_auth(
 //
 // MAIN
 //
-fn main() {
+fn main() -> std::io::Result<()> {
+    let prometheus = PrometheusMetrics::new("mqtt_webhook", "/metrics");
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")
         .version("0.1")
@@ -277,6 +279,7 @@ fn main() {
     let _ = HttpServer::new(move || {
         WebApp::new()
             .register_data(cfg.clone())
+            .wrap(prometheus.clone())
             .data(web::JsonConfig::default().limit(4096))
             .service(web::resource("/auth").route(web::post().to(ws_auth)))
             .service(web::resource("/auth/pub").route(web::post().to(ws_auth_pub)))
@@ -285,6 +288,7 @@ fn main() {
     .bind(listen)
     .unwrap()
     .run();
+    Ok(())
 }
 
 //

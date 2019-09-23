@@ -18,7 +18,6 @@ use serde_json::json;
 use simplelog::*;
 use std::fs;
 use std::sync::Mutex;
-
 use std::str;
 use std::fs::File;
 
@@ -33,7 +32,8 @@ struct User {
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct Cfg {
     url_neotoken: String,
-    users: Vec<User>
+    users: Vec<User>,
+    anonymous: User,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -154,7 +154,7 @@ fn auth_is_ok(auth: &Authentication, cfg: &Cfg) -> Result<WebHookResult, WebHook
         }
         Authentication::Ident { .. } => Ok(WebHookResult::Ok),
         Authentication::Login { username, password } => {
-            if verify(password, &(cfg.users.iter().find(|u| u.login == *username).unwrap()).password).unwrap() {
+            if verify(password, &(cfg.users.iter().find(|u| u.login == *username).unwrap_or(&cfg.anonymous)).password).unwrap_or(false) {
                 Ok(WebHookResult::Ok)
             } else {
                 Err(WebHookResult::Failed)
@@ -295,9 +295,8 @@ fn main() -> std::io::Result<()> {
     let cfg = web::Data::new(Mutex::new(Cfg {
         url_neotoken: url_neotoken.to_string(),
         users: users,
+        anonymous: User { login: "anonymous".to_string(), password: "anonymous".to_string() },
     }));
-
-    println!("{:?}", cfg);
 
     let _ = HttpServer::new(move || {
         WebApp::new()

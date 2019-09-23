@@ -1054,7 +1054,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-webhook"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "actix-web 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-web-prom 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -2,6 +2,7 @@
 
 extern crate bcrypt;
 extern crate clap;
+extern crate config;
 #[macro_use]
 extern crate log;
 extern crate reqwest;
@@ -11,13 +12,14 @@ extern crate simplelog;
 
 use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
 use actix_web_prom::PrometheusMetrics;
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{verify};
 use clap::Arg;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use simplelog::*;
+use std::path::Path;
+use std::collections::HashMap;
 use std::fs;
-use std::fs::File;
 use std::str;
 use std::sync::Mutex;
 
@@ -34,6 +36,7 @@ struct Cfg {
     url_neotoken: String,
     users: Vec<User>,
     anonymous: User,
+    wipman: String, // todo: mettre de l'Option
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -178,16 +181,17 @@ fn ws_auth_sub(_client: web::Json<WebHookAuthSubPayload>, _req: HttpRequest) -> 
 }
 
 fn ws_auth_pub(
-    _cfg: web::Data<Mutex<Cfg>>,
+    cfg: web::Data<Mutex<Cfg>>,
     client: web::Json<WebHookAuthPubPayload>,
     req: HttpRequest,
 ) -> HttpResponse {
+    let cfg = cfg.lock().unwrap();
     match req.headers().get("vernemq-hook") {
         Some(hv) if hv.to_str().unwrap() == "auth_on_publish" => match client.into_inner() {
             WebHookAuthPubPayload {
                 username, topic, ..
             } => {
-                if topic.to_lowercase().contains("wip") && username != "88mph" {
+                if topic.to_lowercase().contains("wip") && username != cfg.wipman {
                     info!("ko pub wip for {}", username);
                     HttpResponse::Ok().json(
                         json!({"result": { "error": "Wiping is not possible with this username." }}),
@@ -245,6 +249,7 @@ fn ws_auth(
 // MAIN
 //
 fn main() -> std::io::Result<()> {
+
     let prometheus = PrometheusMetrics::new("mqtt_webhook", "/metrics");
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")
@@ -258,19 +263,19 @@ fn main() -> std::io::Result<()> {
                 .env("LISTEN_WS"),
         )
         .arg(
-            Arg::with_name("neotoken_url")
-                .long("neotoken-url")
-                .takes_value(true)
-                .default_value("http://neotoken.gendarmerie.fr/token/check/")
-                .env("MQTT_WEBHOOK_NEOTOKEN"),
-        )
-        .arg(
             Arg::with_name("htpasswd")
                 .long("htpasswd")
                 .takes_value(true)
                 .default_value("htpasswd")
                 .help("Use Apache htpasswd. Exemple: htpasswd -B htpasswd 88mph")
                 .env("MQTT_WEBHOOK_HTPASSWD"),
+        )
+        .arg(
+            Arg::with_name("settings")
+                .long("settings")
+                .takes_value(true)
+                .default_value("mqtt-webhook.toml")
+                .env("MQTT_WEBHOOK_CFG"),
         )
         .arg(
             Arg::with_name("logfile")
@@ -283,15 +288,24 @@ fn main() -> std::io::Result<()> {
 
     let listen = matches.value_of("listen").unwrap();
     let logfile = matches.value_of("logfile").unwrap();
-    let url_neotoken = matches.value_of("neotoken_url").unwrap();
     let arg_htpassword = matches.value_of("htpasswd").unwrap();
+    let arg_file_settings = matches.value_of("settings").unwrap();
 
+    let mut settings = config::Config::default();
+    settings
+        .merge(config::File::from(Path::new(arg_file_settings)))
+        .unwrap()
+        .merge(config::Environment::with_prefix("MQTT_WEBHOOK"))
+        .unwrap();
+
+    let hmsettings = settings.try_into::<HashMap<String, String>>().unwrap();
+    
     CombinedLogger::init(vec![
         TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed).unwrap(),
         WriteLogger::new(
             LevelFilter::Info,
             Config::default(),
-            File::create(logfile).unwrap(),
+            fs::File::create(logfile).unwrap(),
         ),
     ])
     .unwrap();
@@ -309,14 +323,17 @@ fn main() -> std::io::Result<()> {
         .collect();
 
     let cfg = web::Data::new(Mutex::new(Cfg {
-        url_neotoken: url_neotoken.to_string(),
+        url_neotoken: hmsettings.get("url_neotoken").unwrap().to_string(),
         users: users,
         anonymous: User {
             login: "anonymous".to_string(),
             password: "anonymous".to_string(),
         },
+        wipman: hmsettings.get("wipman").unwrap_or(&("root".to_string())).to_string(),
     }));
 
+    info!("starting with : {:?}", cfg);
+    
     let _ = HttpServer::new(move || {
         WebApp::new()
             .register_data(cfg.clone())

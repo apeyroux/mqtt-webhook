@@ -183,6 +183,7 @@ fn ws_auth_pub(
                         json!({"result": { "error": "Wiping is not possible with this username." }}),
                     )
                 } else {
+                    info!("ok pub wip for {}", username);
                     HttpResponse::Ok().json(WebHookResult::Ok)
                 }
             }

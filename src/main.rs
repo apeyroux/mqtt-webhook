@@ -259,7 +259,7 @@ fn main() -> std::io::Result<()> {
                 .long("htpasswd")
                 .takes_value(true)
                 .default_value("htpasswd")
-                .help("use Apache htpasswd. Exemple: htpasswd -B htpasswd 88mph")
+                .help("Use Apache htpasswd. Exemple: htpasswd -B htpasswd 88mph")
                 .env("MQTT_WEBHOOK_HTPASSWD"),
         )
         .arg(

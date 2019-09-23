@@ -12,14 +12,14 @@ extern crate simplelog;
 
 use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
 use actix_web_prom::PrometheusMetrics;
-use bcrypt::{verify};
+use bcrypt::verify;
 use clap::Arg;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use simplelog::*;
-use std::path::Path;
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use std::str;
 use std::sync::Mutex;
 
@@ -249,7 +249,6 @@ fn ws_auth(
 // MAIN
 //
 fn main() -> std::io::Result<()> {
-
     let prometheus = PrometheusMetrics::new("mqtt_webhook", "/metrics");
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")
@@ -299,7 +298,7 @@ fn main() -> std::io::Result<()> {
         .unwrap();
 
     let hmsettings = settings.try_into::<HashMap<String, String>>().unwrap();
-    
+
     CombinedLogger::init(vec![
         TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed).unwrap(),
         WriteLogger::new(
@@ -329,11 +328,14 @@ fn main() -> std::io::Result<()> {
             login: "anonymous".to_string(),
             password: "anonymous".to_string(),
         },
-        wipman: hmsettings.get("wipman").unwrap_or(&("root".to_string())).to_string(),
+        wipman: hmsettings
+            .get("wipman")
+            .unwrap_or(&("root".to_string()))
+            .to_string(),
     }));
 
     info!("starting with : {:?}", cfg);
-    
+
     let _ = HttpServer::new(move || {
         WebApp::new()
             .register_data(cfg.clone())

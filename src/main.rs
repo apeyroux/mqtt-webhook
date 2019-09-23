@@ -11,15 +11,15 @@ extern crate simplelog;
 
 use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
 use actix_web_prom::PrometheusMetrics;
-use bcrypt::{DEFAULT_COST, hash, verify};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use clap::Arg;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use simplelog::*;
 use std::fs;
-use std::sync::Mutex;
-use std::str;
 use std::fs::File;
+use std::str;
+use std::sync::Mutex;
 
 type IMEI = String;
 
@@ -154,12 +154,22 @@ fn auth_is_ok(auth: &Authentication, cfg: &Cfg) -> Result<WebHookResult, WebHook
         }
         Authentication::Ident { .. } => Ok(WebHookResult::Ok),
         Authentication::Login { username, password } => {
-            if verify(password, &(cfg.users.iter().find(|u| u.login == *username).unwrap_or(&cfg.anonymous)).password).unwrap_or(false) {
+            if verify(
+                password,
+                &(cfg
+                    .users
+                    .iter()
+                    .find(|u| u.login == *username)
+                    .unwrap_or(&cfg.anonymous))
+                .password,
+            )
+            .unwrap_or(false)
+            {
                 Ok(WebHookResult::Ok)
             } else {
                 Err(WebHookResult::Failed)
             }
-        },
+        }
     }
 }
 
@@ -287,15 +297,24 @@ fn main() -> std::io::Result<()> {
     .unwrap();
 
     // load des users
-    let users: Vec<User> = fs::read_to_string(arg_htpassword)?.lines().map(|line| {
-        let v: Vec<&str> = line.split(":").collect();
-        User{login: v[0].to_string(), password: v[1].to_string()}
-    }).collect();
-    
+    let users: Vec<User> = fs::read_to_string(arg_htpassword)?
+        .lines()
+        .map(|line| {
+            let v: Vec<&str> = line.split(":").collect();
+            User {
+                login: v[0].to_string(),
+                password: v[1].to_string(),
+            }
+        })
+        .collect();
+
     let cfg = web::Data::new(Mutex::new(Cfg {
         url_neotoken: url_neotoken.to_string(),
         users: users,
-        anonymous: User { login: "anonymous".to_string(), password: "anonymous".to_string() },
+        anonymous: User {
+            login: "anonymous".to_string(),
+            password: "anonymous".to_string(),
+        },
     }));
 
     let _ = HttpServer::new(move || {

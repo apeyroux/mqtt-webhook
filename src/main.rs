@@ -1,5 +1,6 @@
 #![feature(bind_by_move_pattern_guards)]
 
+extern crate bcrypt;
 extern crate clap;
 #[macro_use]
 extern crate log;
@@ -10,19 +11,29 @@ extern crate simplelog;
 
 use actix_web::{web, App as WebApp, HttpRequest, HttpResponse, HttpServer};
 use actix_web_prom::PrometheusMetrics;
+use bcrypt::{DEFAULT_COST, hash, verify};
 use clap::Arg;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use simplelog::*;
-use std::fs::File;
+use std::fs;
 use std::sync::Mutex;
 
+use std::str;
+use std::fs::File;
+
 type IMEI = String;
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
+struct User {
+    login: String,
+    password: String,
+}
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct Cfg {
     url_neotoken: String,
-    mph_password: String,
+    users: Vec<User>
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -142,12 +153,13 @@ fn auth_is_ok(auth: &Authentication, cfg: &Cfg) -> Result<WebHookResult, WebHook
             }
         }
         Authentication::Ident { .. } => Ok(WebHookResult::Ok),
-        Authentication::Login { username, password }
-            if username == "88mph" && password == &cfg.mph_password =>
-        {
-            Ok(WebHookResult::Ok)
-        }
-        _ => Err(WebHookResult::Next),
+        Authentication::Login { username, password } => {
+            if verify(password, &(cfg.users.iter().find(|u| u.login == *username).unwrap()).password).unwrap() {
+                Ok(WebHookResult::Ok)
+            } else {
+                Err(WebHookResult::Failed)
+            }
+        },
     }
 }
 
@@ -166,6 +178,7 @@ fn ws_auth_pub(
                 username, topic, ..
             } => {
                 if topic.to_lowercase().contains("wip") && username != "88mph" {
+                    info!("ko pub wip for {}", username);
                     HttpResponse::Ok().json(
                         json!({"result": { "error": "Wiping is not possible with this username." }}),
                     )
@@ -241,11 +254,12 @@ fn main() -> std::io::Result<()> {
                 .env("MQTT_WEBHOOK_NEOTOKEN"),
         )
         .arg(
-            Arg::with_name("mph_password")
-                .long("mph-password")
+            Arg::with_name("htpasswd")
+                .long("htpasswd")
                 .takes_value(true)
-                .default_value("88mph")
-                .env("MQTT_WEBHOOK_88MPH_PASSWORD"),
+                .default_value("htpasswd")
+                .help("use Apache htpasswd. Exemple: htpasswd -B htpasswd 88mph")
+                .env("MQTT_WEBHOOK_HTPASSWD"),
         )
         .arg(
             Arg::with_name("logfile")
@@ -259,7 +273,7 @@ fn main() -> std::io::Result<()> {
     let listen = matches.value_of("listen").unwrap();
     let logfile = matches.value_of("logfile").unwrap();
     let url_neotoken = matches.value_of("neotoken_url").unwrap();
-    let mph_password = matches.value_of("mph_password").unwrap();
+    let arg_htpassword = matches.value_of("htpasswd").unwrap();
 
     CombinedLogger::init(vec![
         TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed).unwrap(),
@@ -271,10 +285,18 @@ fn main() -> std::io::Result<()> {
     ])
     .unwrap();
 
+    // load des users
+    let users: Vec<User> = fs::read_to_string(arg_htpassword)?.lines().map(|line| {
+        let v: Vec<&str> = line.split(":").collect();
+        User{login: v[0].to_string(), password: v[1].to_string()}
+    }).collect();
+    
     let cfg = web::Data::new(Mutex::new(Cfg {
         url_neotoken: url_neotoken.to_string(),
-        mph_password: mph_password.to_string(),
+        users: users,
     }));
+
+    println!("{:?}", cfg);
 
     let _ = HttpServer::new(move || {
         WebApp::new()

@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 actix-web = "1.0.7"
 actix-web-prom = "0.1.2"
+bcrypt = "0.6.0"
 clap = "2.33.0"
 log = "0.4.8"
 reqwest = "=0.9.17"

@@ -340,7 +340,7 @@ fn main() -> std::io::Result<()> {
         WebApp::new()
             .register_data(cfg.clone())
             .wrap(prometheus.clone())
-            .data(web::JsonConfig::default().limit(4096))
+            // .data(web::JsonConfig::default().limit(4096))
             .service(web::resource("/auth").route(web::post().to(ws_auth)))
             .service(web::resource("/auth/pub").route(web::post().to(ws_auth_pub)))
             .service(web::resource("/auth/sub").route(web::post().to(ws_auth_sub)))

@@ -252,7 +252,7 @@ fn main() -> std::io::Result<()> {
     let prometheus = PrometheusMetrics::new("mqtt_webhook", "/metrics");
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")
-        .version("0.3.0")
+        .version("0.3.1")
         .arg(
             Arg::with_name("listen")
                 .short("l")

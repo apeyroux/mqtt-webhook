@@ -192,12 +192,12 @@ fn ws_auth_pub(
                 username, topic, ..
             } => {
                 if topic.to_lowercase().contains("wip") && username != cfg.wipman {
-                    info!("ko pub wip for {}", username);
+                    info!("ko {} pub on {}", username, topic);
                     HttpResponse::Ok().json(
                         json!({"result": { "error": "Wiping is not possible with this username." }}),
                     )
                 } else {
-                    info!("ok pub wip for {}", username);
+                    info!("ok {} pub on {}", username, topic);
                     HttpResponse::Ok().json(WebHookResult::Ok)
                 }
             }
@@ -285,8 +285,8 @@ fn main() -> std::io::Result<()> {
         )
         .get_matches();
 
-    let listen = matches.value_of("listen").unwrap();
-    let logfile = matches.value_of("logfile").unwrap();
+    let arg_listen = matches.value_of("listen").unwrap();
+    let arg_logfile = matches.value_of("logfile").unwrap();
     let arg_htpassword = matches.value_of("htpasswd").unwrap();
     let arg_file_settings = matches.value_of("settings").unwrap();
 
@@ -304,7 +304,7 @@ fn main() -> std::io::Result<()> {
         WriteLogger::new(
             LevelFilter::Info,
             Config::default(),
-            fs::File::create(logfile).unwrap(),
+            fs::File::create(arg_logfile).unwrap(),
         ),
     ])
     .unwrap();
@@ -345,7 +345,7 @@ fn main() -> std::io::Result<()> {
             .service(web::resource("/auth/pub").route(web::post().to(ws_auth_pub)))
             .service(web::resource("/auth/sub").route(web::post().to(ws_auth_sub)))
     })
-    .bind(listen)
+    .bind(arg_listen)
     .unwrap()
     .run();
     Ok(())

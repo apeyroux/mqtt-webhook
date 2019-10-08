@@ -5,6 +5,7 @@ import fetch = require('node-fetch')
 import yargs = require('yargs')
 import bcrypt = require('bcrypt')
 import fs = require('fs');
+import { resolve } from 'url';
 
 const app: express.Application = express()
 
@@ -52,36 +53,47 @@ function load_users(htpasswd: string): User[] {
     }
 }
 
-function is_auth(auth: AuthOnRegister): Either<String, Authentification> {
+async function is_auth(auth: AuthOnRegister, users: User[]): Promise<Authentification> {
     const tauth = auth.username.split(':')
-    const err: Left<String> = { tag: "left", value: "Impossible de vous identifier" }
+    const err: string = "Impossible de vous identifier"
     switch (tauth.length) {
         case 0:
-            return err
+            return Promise.reject(err)
         case 1:
             const [login] = tauth
-            return { tag: "right", value: { type: AuthType.LOGIN, login: login } }
+            const fusers = users.filter(u => u.login == login)
+            switch (fusers.length) {
+                case 1:
+                    return bcrypt.compare(auth.password, fusers[0].password.replace(/^\$2y/, "$2a")).then(res => {
+                        if (res) {
+                            return Promise.resolve({ type: AuthType.LOGIN, login: login })
+                        } else {
+                            return Promise.reject(err)
+                        }
+                    })
+                default:
+                    return Promise.reject(err)
+            }
         case 3:
             const [type, imei, idtel] = tauth
             switch (type) {
                 case AuthType.AUTH:
                     fetch.default("https://google.fr", { method: "post" }).then(r => {
                         if (r.status != 200) {
-                            return err
+                            return Promise.reject(err)
                         } else {
-                            return { tag: "right", value: { type: AuthType.AUTH, login: imei, idtel: idtel } }
+                            return Promise.resolve({ tag: "right", value: { type: AuthType.AUTH, login: imei, idtel: idtel } })
                         }
                     })
                 case AuthType.IDENT:
-                    return { tag: "right", value: { type: AuthType.IDENT, login: imei, idtel: idtel } }
+                    return Promise.resolve({ type: AuthType.IDENT, login: imei, idtel: idtel })
                 default:
-                    return err
+                    return Promise.reject(err)
             }
         default:
-            return { tag: "left", value: "Erreur de login" }
+            return Promise.reject(err)
     }
 }
-
 
 // start main()
 const argv = yargs.scriptName("mqtt-webhook").options({
@@ -94,7 +106,7 @@ const users: User[] = load_users(argv.u)
 
 app.use(express.json())
 
-app.post('/auth', function(req, res) {
+app.post('/auth', function (req, res) {
     const ok = { "result": "ok" }
     const ko = {
         "result": {
@@ -104,30 +116,23 @@ app.post('/auth', function(req, res) {
     if (req.headers['vernemq-hook']) {
         if (req.headers['vernemq-hook'] == "auth_on_register") {
             if (req.body.username && req.body.password) {
-                const payload = is_auth(req.body)
-                switch (payload.tag) {
-                    case "right":
-                        res.send(ok)
-                        break
-                    case "left":
-                        res.status(401).send(ko)
-                        break
-                    default:
-                        res.status(401).send(ko)
-                }
+                const payload = is_auth(req.body, users).then(p => {
+                    res.send(ok)
+                }).catch(err => {
+                    console.log(err)
+                    res.status(401).send(ko)
+                })
             }
         }
     }
 })
 
-bcrypt.compare("alex", "$2y$05$LLCSCd59BG.lRMSOmh3qgeH6ElWTivQNOSKBeJkZ7Z3ygWKFatoAK".replace(/^\$2y/, "$2a")).then(res => {
-    console.log(res)
-});
+
 
 bcrypt.compare("andre", "$2y$05$LLCSCd59BG.lRMSOmh3qgeH6ElWTivQNOSKBeJkZ7Z3ygWKFatoAK".replace(/^\$2y/, "$2a")).then(res => {
     console.log(res)
 });
 
-app.listen(argv.p, function() {
+app.listen(argv.p, function () {
     console.log(`mqtt-webhook app listening on port ${argv.p}!`)
 })

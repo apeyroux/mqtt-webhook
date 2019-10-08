@@ -1,19 +1,34 @@
 {
-  "name": "mqtt-webhook",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/main.js",
-  "dependencies": {
-    "express": "^4.17.1"
-  },
-  "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@git.gendarmerie.fr:apeyroux/mqtt-webhook.git"
-  },
-  "author": "",
-  "license": "ISC"
+    "license": "ISC",
+    "author": "",
+    "repository": {
+        "url": "git@git.gendarmerie.fr:apeyroux/mqtt-webhook.git",
+        "type": "git"
+    },
+    "devDependencies": {
+        "@types/express": "^4.17.1",
+        "@types/node": "^12.7.11",
+        "@types/node-fetch": "^2.5.2",
+        "@types/yargs": "^13.0.3",
+        "@types/bcrypt": "^3.0.0"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "tsc": "tsc"
+    },
+    "dependencies": {
+        "bcrypt": "^3.0.6",
+        "bcryptjs": "^2.4.3",
+        "express": "^4.17.1",
+        "express-winston": "^4.0.0",
+        "nodaemon": "0.0.5",
+        "node-fetch": "^2.6.0",
+        "typescript": "^3.6.3",
+        "winston": "^3.2.1",
+        "yargs": "^14.2.0"
+    },
+    "main": "dist/main.js",
+    "description": "",
+    "version": "1.0.0",
+    "name": "mqtt-webhook"
 }

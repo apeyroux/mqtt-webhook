@@ -342,7 +342,7 @@ fn main() -> std::io::Result<()> {
             .wrap(prometheus.clone())
             // .data(web::JsonConfig::default().limit(4096))
             .service(web::resource("/auth").route(web::post().to(ws_auth)))
-            .service(web::resource("/auth/pub").route(web::post().to(ws_auth_pub)))
+            .service(web::resource("/auth/pub").data(web::JsonConfig::default().limit(204800000)).route(web::post().to(ws_auth_pub)))
             .service(web::resource("/auth/sub").route(web::post().to(ws_auth_sub)))
     })
     .bind(arg_listen)

@@ -252,7 +252,7 @@ fn main() -> std::io::Result<()> {
     let prometheus = PrometheusMetrics::new("mqtt_webhook", "/metrics");
     let matches = clap::App::new("mqtt-webhook")
         .about("MQTT-WEBHOOK")
-        .version("0.3.1")
+        .version("0.3.2")
         .arg(
             Arg::with_name("listen")
                 .short("l")
@@ -300,7 +300,7 @@ fn main() -> std::io::Result<()> {
     let hmsettings = settings.try_into::<HashMap<String, String>>().unwrap();
 
     CombinedLogger::init(vec![
-        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed).unwrap(),
+        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed),
         WriteLogger::new(
             LevelFilter::Info,
             Config::default(),

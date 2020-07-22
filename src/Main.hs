@@ -19,7 +19,11 @@ import Servant.Ekg
 import qualified System.Remote.Monitoring as EKG
 import System.Metrics
 
-data Authentification = Auth | Ident | Application | Anonymous deriving Show
+
+type IMEI = Text
+type IdTel = Text
+
+data Authentification = Auth | NeoToken Text | Ident IMEI IdTel | Application | Anonymous deriving Show
 
 data MqttClient = MqttClient {
   mcUsername :: Text
@@ -41,19 +45,19 @@ data MqttHookResponse = MqttHookResponse {
 instance ToJSON MqttHookResponse where
   toJSON (MqttHookResponse msg) = object ["result" .= msg]
 
-data TokenCheckResponse = TokenCheckResponse {
-  tcrAuthentification :: Bool
-  , tcrUid :: Text
+data NeoTokenCheckResponse = NeoTokenCheckResponse {
+  ntcrAuthentification :: Bool
+  , ntcrUid :: Text
   } deriving (Generic, Show)
 
-instance ToJSON TokenCheckResponse where
-  toJSON (TokenCheckResponse auth uid) = object ["authentification" .= auth, "uid" .= uid]
+instance ToJSON NeoTokenCheckResponse where
+  toJSON (NeoTokenCheckResponse auth uid) = object ["authentification" .= auth, "uid" .= uid]
 
-instance FromJSON TokenCheckResponse where
-  parseJSON (Object v) = TokenCheckResponse <$> v .: "authentification" <*> v .: "uid"
+instance FromJSON NeoTokenCheckResponse where
+  parseJSON (Object v) = NeoTokenCheckResponse <$> v .: "authentification" <*> v .: "uid"
 
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
-type NeoTokenAPI = "token" :> "check" :> Capture "uid" :> Capture "token" :> Get '[JSON] TokenCheckResponse
+type NeoTokenAPI = "token" :> "check" :> Capture "uid" :> Capture "token" :> Get '[JSON] NeoTokenCheckResponse
 
 mc2auth :: MqttClient -> Authentification
 mc2auth c = case splitOn ":" (mcUsername c) of
@@ -61,7 +65,8 @@ mc2auth c = case splitOn ":" (mcUsername c) of
   ["neoparc"] -> case mcPassword c of
     Just "neoparc" -> Application
     _ ->  Anonymous
-  ["ident", _, _] -> Ident
+  ["token", t, _] -> NeoToken t
+  ["ident", imei, idtel] -> Ident imei idtel
   ["auth", _, _] -> Auth
   _ -> Anonymous
 
@@ -71,12 +76,17 @@ mqttWebHook = Proxy
 whrOk :: Maybe Text -> MqttClient -> Handler MqttHookResponse
 whrOk (Just "auth_on_register") c = do
   case mc2auth c of
+    NeoToken t -> do
+      liftIO $ do
+        print $ "check token:" <> t
+        print c
+      return $ MqttHookResponse "ok"
     Application -> do
       liftIO $ print "hello application"
       return $ MqttHookResponse "ok"
-    Ident -> do
+    Ident imei _ -> do
       liftIO $ do
-        print "IDENT on_regiserer"
+        print $ "IDENT on_regiserer de " <> imei
         print c
       return $ MqttHookResponse "ok"
     Auth -> do

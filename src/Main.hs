@@ -111,7 +111,7 @@ srvMqttWebHook = whrOk
 
 appMqttWebHook :: IO Application
 appMqttWebHook = do
-  store <- EKG.serverMetricStore <$> EKG.forkServer "127.0.0.1" 8888
+  store <- EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8888
   monitorEndpoints' <- monitorEndpoints mqttWebHook store
   return $ monitorEndpoints' (serve mqttWebHook srvMqttWebHook)
 

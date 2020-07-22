@@ -15,6 +15,9 @@ import Network.Wai.Handler.Warp
 import Network.Wai.Logger (withStdoutLogger)
 import Servant
 import Servant.API
+import Servant.Ekg
+import qualified System.Remote.Monitoring as EKG
+import System.Metrics
 
 data Authentification = Auth | Ident | Application | Anonymous deriving Show
 
@@ -96,12 +99,16 @@ whrOk _ _ = return $ MqttHookResponse "next"
 srvMqttWebHook :: Server MqttWebHook
 srvMqttWebHook = whrOk
 
-appMqttWebHook :: Application
-appMqttWebHook = serve mqttWebHook srvMqttWebHook
+appMqttWebHook :: IO Application
+appMqttWebHook = do
+  store <- EKG.serverMetricStore <$> EKG.forkServer "127.0.0.1" 8888
+  monitorEndpoints' <- monitorEndpoints mqttWebHook store
+  return $ monitorEndpoints' (serve mqttWebHook srvMqttWebHook)
 
 main :: IO ()
 main = do
   putStrLn "starting mqtt hook listener ..."
   withStdoutLogger $ \aplogger -> do
-        let settings = setPort 80 $ setLogger aplogger defaultSettings
-        runSettings settings appMqttWebHook
+    let settings = setPort 8080 $ setLogger aplogger defaultSettings
+    app <- appMqttWebHook
+    runSettings settings app

@@ -38,6 +38,17 @@ instance FromJSON MqttClient where
         <*> v .:? "password"
         <*> v .: "client_id"
 
+data MqttSubscribe = MqttSubscribe {
+  msUsername :: Text
+  , msId :: Text
+} deriving (Generic, Show)
+
+instance ToJSON MqttSubscribe
+instance FromJSON MqttSubscribe where
+  parseJSON (Object v) = MqttSubscribe
+        <$> v .: "username"
+        <*> v .: "client_id"
+
 data MqttHookResponse = MqttHookResponse {
   mhrResult :: Text
 } deriving (Generic, Show)
@@ -57,6 +68,7 @@ instance FromJSON NeoTokenCheckResponse where
   parseJSON (Object v) = NeoTokenCheckResponse <$> v .: "authentification" <*> v .: "uid"
 
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
+  :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse
 type NeoTokenAPI = "token" :> "check" :> Capture "uid" :> Capture "token" :> Get '[JSON] NeoTokenCheckResponse
 
 mc2auth :: MqttClient -> Authentification
@@ -73,8 +85,12 @@ mc2auth c = case splitOn ":" (mcUsername c) of
 mqttWebHook :: Proxy MqttWebHook
 mqttWebHook = Proxy
 
-whrOk :: Maybe Text -> MqttClient -> Handler MqttHookResponse
-whrOk (Just "auth_on_register") c = do
+whAuthOnSubscribe :: Maybe Text -> MqttSubscribe -> Handler MqttHookResponse
+whAuthOnSubscribe (Just "auth_on_subscriber") _ = return $ MqttHookResponse "on_sub"
+whAuthOnSubscribe _ _ = return $ MqttHookResponse "on_sub_bad"
+
+whAuthOnRegister :: Maybe Text -> MqttClient -> Handler MqttHookResponse
+whAuthOnRegister (Just "auth_on_register") c = do
   case mc2auth c of
     NeoToken t -> do
       liftIO $ do
@@ -100,14 +116,10 @@ whrOk (Just "auth_on_register") c = do
         print "NO AUTH"
         print c
       return $ MqttHookResponse "next"
--- whrOk (Just "auth_on_subscribe") c = do
---   liftIO $ print "on_subscribe"
---   liftIO $ print c
---   return $ MqttHookResponse "ok"
-whrOk _ _ = return $ MqttHookResponse "next"
+whAuthOnRegister _ _ = return $ MqttHookResponse "next"
 
 srvMqttWebHook :: Server MqttWebHook
-srvMqttWebHook = whrOk
+srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe
 
 appMqttWebHook :: IO Application
 appMqttWebHook = do

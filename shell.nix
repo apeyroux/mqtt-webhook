@@ -4,9 +4,9 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, aeson, base, bytestring, mtl
-      , optparse-applicative, servant, servant-client, servant-server
-      , stdenv, text, wai, wai-logger, warp
+  f = { mkDerivation, aeson, base, bytestring, ekg, ekg-core, mtl
+      , optparse-applicative, servant, servant-client, servant-ekg
+      , servant-server, stdenv, text, wai, wai-logger, warp
       }:
       mkDerivation {
         pname = "mqtt-webhook";
@@ -15,11 +15,9 @@ let
         isLibrary = false;
         isExecutable = true;
         executableHaskellDepends = [
-          aeson base bytestring mtl optparse-applicative servant
-          servant-client servant-server text wai wai-logger warp
+          aeson base bytestring ekg ekg-core mtl optparse-applicative servant
+          servant-client servant-ekg servant-server text wai wai-logger warp
         ];
-        doHaddock = false;
-        doCheck = false;
         homepage = "https://github.com/githubuser/mqtt-webhook#readme";
         license = stdenv.lib.licenses.bsd3;
       };

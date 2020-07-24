@@ -69,7 +69,7 @@ instance FromJSON NeoTokenCheckResponse where
 
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
   :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse
-type NeoTokenAPI = "token" :> "check" :> Capture "uid" :> Capture "token" :> Get '[JSON] NeoTokenCheckResponse
+type NeoToken = "token" :> "check" :> Capture "uid" Text :> Capture "token" Text :> Get '[JSON] NeoTokenCheckResponse
 
 mc2auth :: MqttClient -> Authentification
 mc2auth c = case splitOn ":" (mcUsername c) of
@@ -84,6 +84,12 @@ mc2auth c = case splitOn ":" (mcUsername c) of
 
 mqttWebHook :: Proxy MqttWebHook
 mqttWebHook = Proxy
+
+neoToken :: Proxy NeoToken
+neoToken = Proxy
+
+neoTokenAPI :: Text -> Text -> Handler NeoTokenCheckResponse
+neoTokenAPI uid token = return NeoTokenCheckResponse { ntcrAuthentification = True, ntcrUid = "untoken" }
 
 whAuthOnSubscribe :: Maybe Text -> MqttSubscribe -> Handler MqttHookResponse
 whAuthOnSubscribe (Just "auth_on_subscriber") _ = return $ MqttHookResponse "on_sub"
@@ -121,6 +127,15 @@ whAuthOnRegister _ _ = return $ MqttHookResponse "next"
 srvMqttWebHook :: Server MqttWebHook
 srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe
 
+srvNeoToken :: Server NeoToken
+srvNeoToken = neoTokenAPI
+
+appNeoToken :: IO Application
+appNeoToken = do
+  store <- EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8889
+  monitorEndpoints' <- monitorEndpoints neoToken store
+  return $ monitorEndpoints' (serve neoToken srvNeoToken)
+
 appMqttWebHook :: IO Application
 appMqttWebHook = do
   store <- EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8888
@@ -131,6 +146,11 @@ main :: IO ()
 main = do
   putStrLn "starting mqtt hook listener ..."
   withStdoutLogger $ \aplogger -> do
-    let settings = setPort 8080 $ setLogger aplogger defaultSettings
-    app <- appMqttWebHook
-    runSettings settings app
+    -- let settings = setPort 8080 $ setLogger aplogger defaultSettings
+    -- appWH <- appMqttWebHook
+    -- runSettings settings appWH
+
+    -- neotoken
+    let settings = setPort 8081 $ setLogger aplogger defaultSettings
+    appNT <- appNeoToken
+    runSettings settings appNT

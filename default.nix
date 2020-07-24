@@ -1,5 +1,5 @@
-{ mkDerivation, aeson, base, bytestring, ekg, ekg-core, mtl
-, optparse-applicative, servant, servant-client, servant-ekg
+{ mkDerivation, aeson, base, bytestring, ekg, ekg-core, http-client
+, mtl, optparse-applicative, servant, servant-client, servant-ekg
 , servant-server, stdenv, text, wai, wai-logger, warp
 }:
 mkDerivation {
@@ -9,8 +9,9 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    aeson base bytestring ekg ekg-core mtl optparse-applicative servant
-    servant-client servant-ekg servant-server text wai wai-logger warp
+    aeson base bytestring ekg ekg-core http-client mtl
+    optparse-applicative servant servant-client servant-ekg
+    servant-server text wai wai-logger warp
   ];
   homepage = "https://github.com/githubuser/mqtt-webhook#readme";
   license = stdenv.lib.licenses.bsd3;

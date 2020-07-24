@@ -19,6 +19,27 @@ import Servant.Ekg
 import qualified System.Remote.Monitoring as EKG
 import System.Metrics
 
+import Data.Proxy
+import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Servant.Client
+
+
+--- TEST IP
+newtype Ip = Ip {
+  ip :: String
+} deriving (Eq, Show, Generic)
+instance FromJSON Ip
+instance ToJSON Ip
+
+type IPifyAPI = QueryParam "format" String :> Get '[JSON] Ip
+
+ipifyAPI :: Proxy IPifyAPI
+ipifyAPI = Proxy
+
+-- query ?format=json
+ipq :: ClientM Ip
+ipq = client ipifyAPI (Just "json")
+-- END TEST
 
 type IMEI = Text
 type IdTel = Text
@@ -107,10 +128,14 @@ whAuthOnRegister (Just "auth_on_register") c = do
       liftIO $ print "hello application"
       return $ MqttHookResponse "ok"
     Ident imei _ -> do
+      -- EXEMPLE POUR ALLER CHERCHER UN WS EXT (NeoToken)
       liftIO $ do
         print $ "IDENT on_regiserer de " <> imei
-        print c
-      return $ MqttHookResponse "ok"
+        manager' <- newManager defaultManagerSettings
+        r <- runClientM ipq (mkClientEnv manager' (BaseUrl Http "api.ipify.org" 80 ""))
+        case r of
+          Left e -> return $ MqttHookResponse (T.pack $ show e)
+          Right (Ip ip) -> return $ MqttHookResponse (T.pack ip)
     Auth -> do
       liftIO $ do
         print "AUTH on_regiserer"
@@ -146,11 +171,11 @@ main :: IO ()
 main = do
   putStrLn "starting mqtt hook listener ..."
   withStdoutLogger $ \aplogger -> do
-    -- let settings = setPort 8080 $ setLogger aplogger defaultSettings
-    -- appWH <- appMqttWebHook
-    -- runSettings settings appWH
+    let settings = setPort 8080 $ setLogger aplogger defaultSettings
+    appWH <- appMqttWebHook
+    runSettings settings appWH
 
     -- neotoken
-    let settings = setPort 8081 $ setLogger aplogger defaultSettings
-    appNT <- appNeoToken
-    runSettings settings appNT
+    -- let settings = setPort 8081 $ setLogger aplogger defaultSettings
+    -- appNT <- appNeoToken
+    -- runSettings settings appNT

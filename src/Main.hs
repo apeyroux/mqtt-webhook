@@ -90,8 +90,8 @@ mc2auth c = case splitOn ":" (mcUsername c) of
   ["auth", _, _] -> Auth
   _ -> Anonymous
 
-mqttWebHook :: Proxy MqttWebHook
-mqttWebHook = Proxy
+mqttWebHookAPI :: Proxy MqttWebHook
+mqttWebHookAPI = Proxy
 
 whAuthOnSubscribe :: Maybe Text -> MqttSubscribe -> Handler MqttHookResponse
 whAuthOnSubscribe (Just "auth_on_subscriber") _ = return $ MqttHookResponse "on_sub"
@@ -135,13 +135,12 @@ srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe
 
 appMqttWebHook :: IO Application
 appMqttWebHook = do
-  store <- EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8888
-  monitorEndpoints' <- monitorEndpoints mqttWebHook store
-  return $ monitorEndpoints' (serve mqttWebHook srvMqttWebHook)
+  monitorEndpoints' <- monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8000)
+  return $ monitorEndpoints' (serve mqttWebHookAPI srvMqttWebHook)
 
 main :: IO ()
 main = do
   putStrLn "starting mqtt hook listener ..."
-  withStdoutLogger $ \applogger -> do
-    let settings = setPort 8080 $ setLogger applogger defaultSettings
+  withStdoutLogger $ \appLogger -> do
+    let settings = setHost "0.0.0.0" $ setPort 8080 $ setLogger appLogger defaultSettings
     appMqttWebHook >>= runSettings settings

@@ -142,12 +142,6 @@ appMqttWebHook = do
 main :: IO ()
 main = do
   putStrLn "starting mqtt hook listener ..."
-  withStdoutLogger $ \aplogger -> do
-    let settings = setPort 8080 $ setLogger aplogger defaultSettings
-    appWH <- appMqttWebHook
-    runSettings settings appWH
-
-    -- neotoken
-    -- let settings = setPort 8081 $ setLogger aplogger defaultSettings
-    -- appNT <- appNeoToken
-    -- runSettings settings appNT
+  withStdoutLogger $ \applogger -> do
+    let settings = setPort 8080 $ setLogger applogger defaultSettings
+    appMqttWebHook >>= runSettings settings

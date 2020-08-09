@@ -5,23 +5,26 @@
 
 module Main where
 
-import Control.Monad.Trans (liftIO)
-import Data.Aeson
-import Data.Text (Text)
-import Data.Text as T
-import GHC.Generics
-import Network.Wai
-import Network.Wai.Handler.Warp
-import Network.Wai.Logger (withStdoutLogger)
-import Servant
-import Servant.API
-import Servant.Ekg
+import           Control.Monad.Trans (liftIO)
+import           Data.Aeson
+import           Data.Text (Text)
+import           Data.Text as T
+import           GHC.Generics
+import           Network.Wai
+import           Network.Wai.Handler.Warp
+import           Network.Wai.Logger (withStdoutLogger)
+import           Servant
+import           Servant.API
+import           Servant.Ekg
 import qualified System.Remote.Monitoring as EKG
-import System.Metrics
+import           System.Metrics
 
-import Data.Proxy
-import Network.HTTP.Client (newManager, defaultManagerSettings)
-import Servant.Client
+import           Data.Proxy
+import           Network.HTTP.Client (newManager, defaultManagerSettings)
+import           Servant.Client
+
+import           Servant.PY
+import           System.FilePath
 
 --- TEST IP
 newtype Ip = Ip {
@@ -140,7 +143,12 @@ appMqttWebHook = do
 
 main :: IO ()
 main = do
+  putStrLn "write python sample ..."
+  writePythonForAPI mqttWebHookAPI requests (result </> "api.py")
   putStrLn "starting mqtt hook listener ..."
   withStdoutLogger $ \appLogger -> do
     let settings = setHost "0.0.0.0" $ setPort 8080 $ setLogger appLogger defaultSettings
     appMqttWebHook >>= runSettings settings
+  where
+    result :: FilePath
+    result = "samples"

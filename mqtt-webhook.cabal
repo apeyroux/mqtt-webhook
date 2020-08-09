@@ -22,12 +22,14 @@ executable mqtt-webhook
                      , bytestring
                      , ekg
                      , ekg-core
+                     , filepath
                      , http-client
                      , mtl
                      , optparse-applicative
                      , servant
                      , servant-client
                      , servant-ekg
+                     , servant-py
                      , servant-server
                      , text
                      , wai

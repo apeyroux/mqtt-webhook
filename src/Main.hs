@@ -23,7 +23,6 @@ import Data.Proxy
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Servant.Client
 
-
 --- TEST IP
 newtype Ip = Ip {
   ip :: String
@@ -70,27 +69,15 @@ instance FromJSON MqttSubscribe where
         <$> v .: "username"
         <*> v .: "client_id"
 
-data MqttHookResponse = MqttHookResponse {
+newtype MqttHookResponse = MqttHookResponse {
   mhrResult :: Text
 } deriving (Generic, Show)
 
 instance ToJSON MqttHookResponse where
   toJSON (MqttHookResponse msg) = object ["result" .= msg]
 
-data NeoTokenCheckResponse = NeoTokenCheckResponse {
-  ntcrAuthentification :: Bool
-  , ntcrUid :: Text
-  } deriving (Generic, Show)
-
-instance ToJSON NeoTokenCheckResponse where
-  toJSON (NeoTokenCheckResponse auth uid) = object ["authentification" .= auth, "uid" .= uid]
-
-instance FromJSON NeoTokenCheckResponse where
-  parseJSON (Object v) = NeoTokenCheckResponse <$> v .: "authentification" <*> v .: "uid"
-
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
   :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse
-type NeoToken = "token" :> "check" :> Capture "uid" Text :> Capture "token" Text :> Get '[JSON] NeoTokenCheckResponse
 
 mc2auth :: MqttClient -> Authentification
 mc2auth c = case splitOn ":" (mcUsername c) of
@@ -106,18 +93,12 @@ mc2auth c = case splitOn ":" (mcUsername c) of
 mqttWebHook :: Proxy MqttWebHook
 mqttWebHook = Proxy
 
-neoToken :: Proxy NeoToken
-neoToken = Proxy
-
-neoTokenAPI :: Text -> Text -> Handler NeoTokenCheckResponse
-neoTokenAPI uid token = return NeoTokenCheckResponse { ntcrAuthentification = True, ntcrUid = "untoken" }
-
 whAuthOnSubscribe :: Maybe Text -> MqttSubscribe -> Handler MqttHookResponse
 whAuthOnSubscribe (Just "auth_on_subscriber") _ = return $ MqttHookResponse "on_sub"
 whAuthOnSubscribe _ _ = return $ MqttHookResponse "on_sub_bad"
 
 whAuthOnRegister :: Maybe Text -> MqttClient -> Handler MqttHookResponse
-whAuthOnRegister (Just "auth_on_register") c = do
+whAuthOnRegister (Just "auth_on_register") c = 
   case mc2auth c of
     NeoToken t -> do
       liftIO $ do
@@ -127,7 +108,7 @@ whAuthOnRegister (Just "auth_on_register") c = do
     Application -> do
       liftIO $ print "hello application"
       return $ MqttHookResponse "ok"
-    Ident imei _ -> do
+    Ident imei _ -> 
       -- EXEMPLE POUR ALLER CHERCHER UN WS EXT (NeoToken)
       liftIO $ do
         print $ "IDENT on_regiserer de " <> imei
@@ -151,15 +132,6 @@ whAuthOnRegister _ _ = return $ MqttHookResponse "next"
 
 srvMqttWebHook :: Server MqttWebHook
 srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe
-
-srvNeoToken :: Server NeoToken
-srvNeoToken = neoTokenAPI
-
-appNeoToken :: IO Application
-appNeoToken = do
-  store <- EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8889
-  monitorEndpoints' <- monitorEndpoints neoToken store
-  return $ monitorEndpoints' (serve neoToken srvNeoToken)
 
 appMqttWebHook :: IO Application
 appMqttWebHook = do

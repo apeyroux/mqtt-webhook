@@ -15,7 +15,7 @@ import           Network.Wai.Handler.Warp
 import           Network.Wai.Logger (withStdoutLogger)
 import           Servant
 import           Servant.API
-import           Servant.Ekg
+-- import           Servant.Ekg
 import qualified System.Remote.Monitoring as EKG
 import           System.Metrics
 
@@ -137,9 +137,10 @@ srvMqttWebHook :: Server MqttWebHook
 srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe
 
 appMqttWebHook :: IO Application
-appMqttWebHook = do
-  monitorEndpoints' <- monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8000)
-  return $ monitorEndpoints' (serve mqttWebHookAPI srvMqttWebHook)
+appMqttWebHook =
+  -- monitorEndpoints' <- monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8000)
+  -- return $ monitorEndpoints' (serve mqttWebHookAPI srvMqttWebHook)
+  return $ serve mqttWebHookAPI srvMqttWebHook
 
 main :: IO ()
 main = do

@@ -1,4 +1,6 @@
 cradle:
   cabal:
-  - path: "./src/Main.hs"
+  - path: "./app/Main.hs"
     component: "exe:mqtt-webhook"
+  - path: "./src/MqttWebHook.hs"
+    component: "library:mqtt-webhook"

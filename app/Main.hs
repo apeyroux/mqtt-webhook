@@ -26,6 +26,8 @@ import           Servant.Client
 import           Servant.PY
 import           System.FilePath
 
+import           MqttWebHook.Data
+
 --- TEST IP
 newtype Ip = Ip {
   ip :: String
@@ -47,37 +49,6 @@ type IMEI = Text
 type IdTel = Text
 
 data Authentification = Auth | NeoToken Text | Ident IMEI IdTel | Application | Anonymous deriving Show
-
-data MqttClient = MqttClient {
-  mcUsername :: Text
-  , mcPassword :: Maybe Text
-  , mcId :: Text
-} deriving (Generic, Show)
-
-instance ToJSON MqttClient
-instance FromJSON MqttClient where
-  parseJSON (Object v) = MqttClient
-        <$> v .: "username"
-        <*> v .:? "password"
-        <*> v .: "client_id"
-
-data MqttSubscribe = MqttSubscribe {
-  msUsername :: Text
-  , msId :: Text
-} deriving (Generic, Show)
-
-instance ToJSON MqttSubscribe
-instance FromJSON MqttSubscribe where
-  parseJSON (Object v) = MqttSubscribe
-        <$> v .: "username"
-        <*> v .: "client_id"
-
-newtype MqttHookResponse = MqttHookResponse {
-  mhrResult :: Text
-} deriving (Generic, Show)
-
-instance ToJSON MqttHookResponse where
-  toJSON (MqttHookResponse msg) = object ["result" .= msg]
 
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
   :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse

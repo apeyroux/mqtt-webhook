@@ -45,6 +45,30 @@ ipq :: ClientM Ip
 ipq = client ipifyAPI (Just "json")
 -- END TEST
 
+-- NEOTOKEN
+data NeoTokenV1 =
+  NeoTokenIsAuth {
+    ntcrAuthentification :: Bool
+    , ntcrUid :: Text
+  }
+  | NeoTokenIsUnAuth {
+    ntcrError :: Int
+    , ntcrMsg :: Text
+  } deriving (Generic, Show)
+
+instance FromJSON NeoTokenV1 where
+  parseJSON (Object v) = NeoTokenIsAuth <$> v .: "authentification" <*> v .: "uid"
+
+type NeoTokenV1API = "token" :> "check" :> QueryParam "uid" Text :> QueryParam "token" Text :> Get '[JSON] NeoTokenV1
+
+neoTokenV1API :: Proxy NeoTokenV1API
+neoTokenV1API = Proxy
+
+-- query ?format=json
+clientNeotoken :: Maybe Text -> Maybe Text -> ClientM NeoTokenV1
+clientNeotoken = client neoTokenV1API
+-- END NEOTOKEN
+
 type IMEI = Text
 type IdTel = Text
 type TUid = Text
@@ -80,10 +104,10 @@ whAuthOnRegister (Just "auth_on_register") c =
       liftIO $ do
         print $ "IDENT d'un token " <> token
         managerNeoToken <- newManager defaultManagerSettings
-        r <- runClientM ipq (mkClientEnv managerNeoToken (BaseUrl Http "api.ipify.org" 80 ""))
+        r <- runClientM (clientNeotoken (Just uid) (Just token)) (mkClientEnv managerNeoToken (BaseUrl Http "127.0.0.1" 8081 ""))
         case r of
-          Left e -> return $ MqttHookResponse (T.pack $ show e)
-          Right (Ip ip) -> return $ MqttHookResponse (T.pack ip)
+          Left e -> return $ MqttHookResponseNotAllowed $ T.pack $ show e
+          Right t -> return $ MqttHookResponseOk $ T.pack $ show t
     Application -> do
       liftIO $ print "hello application"
       return $ MqttHookResponse "ok"

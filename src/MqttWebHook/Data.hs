@@ -38,9 +38,13 @@ instance FromJSON MqttSubscribe where
         <$> v .: "username"
         <*> v .: "client_id"
 
-newtype MqttHookResponse = MqttHookResponse {
-  mhrResult :: Text
-} deriving (Generic, Show)
+data MqttHookResponse = MqttHookResponseOk {
+  mhrResultOk :: Text
+  }
+  | MqttHookResponseNotAllowed {
+    mhrResultKo :: Text
+  } deriving (Generic, Show)
 
 instance ToJSON MqttHookResponse where
-  toJSON (MqttHookResponse msg) = object ["result" .= msg]
+  toJSON (MqttHookResponseOk msg) = object ["result" .= msg]
+  toJSON (MqttHookResponseNotAllowed msg) = object ["result" .= msg]

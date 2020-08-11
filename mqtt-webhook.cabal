@@ -53,7 +53,7 @@ executable mqtt-webhook
                      , wai-logger >=2.3 && <2.4
                      , servant-server >=0.17 && <0.18
                      , servant >=0.17 && <0.18
-                     -- , servant-ekg >=0.3 && <0.4
+                     , servant-ekg >=0.3 && <0.4
                      , ekg >=0.4 && <0.5
                      , ekg-core >=0.1 && <0.2
                      , http-client >=0.6 && <0.7

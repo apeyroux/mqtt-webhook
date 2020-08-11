@@ -47,19 +47,20 @@ ipq = client ipifyAPI (Just "json")
 
 type IMEI = Text
 type IdTel = Text
+type TUid = Text
+type TContent = Text
 
-data Authentification = Auth | NeoToken Text | Ident IMEI IdTel | Application | Anonymous deriving Show
+data Authentification = Auth | NeoToken IMEI IdTel TUid TContent  | Ident IMEI IdTel | Application | Anonymous deriving Show
 
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
   :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse
 
 mc2auth :: MqttClient -> Authentification
 mc2auth c = case splitOn ":" (mcUsername c) of
-  -- kk mais ok pour poc
   ["neoparc"] -> case mcPassword c of
     Just "neoparc" -> Application
     _ ->  Anonymous
-  ["token", t, _] -> NeoToken t
+  ["token", imei, idtel, uid, token] -> NeoToken imei idtel uid token
   ["ident", imei, idtel] -> Ident imei idtel
   ["auth", _, _] -> Auth
   _ -> Anonymous
@@ -74,11 +75,15 @@ whAuthOnSubscribe _ _ = return $ MqttHookResponse "on_sub_bad"
 whAuthOnRegister :: Maybe Text -> MqttClient -> Handler MqttHookResponse
 whAuthOnRegister (Just "auth_on_register") c = 
   case mc2auth c of
-    NeoToken t -> do
+    NeoToken imei idtel uid token ->
+      -- Check d'un NeoToken
       liftIO $ do
-        print $ "check token:" <> t
-        print c
-      return $ MqttHookResponse "ok"
+        print $ "IDENT d'un token " <> token
+        managerNeoToken <- newManager defaultManagerSettings
+        r <- runClientM ipq (mkClientEnv managerNeoToken (BaseUrl Http "api.ipify.org" 80 ""))
+        case r of
+          Left e -> return $ MqttHookResponse (T.pack $ show e)
+          Right (Ip ip) -> return $ MqttHookResponse (T.pack ip)
     Application -> do
       liftIO $ print "hello application"
       return $ MqttHookResponse "ok"
@@ -101,7 +106,8 @@ whAuthOnRegister (Just "auth_on_register") c =
       liftIO $ do
         print "NO AUTH"
         print c
-      return $ MqttHookResponse "next"
+      throwError err401
+      -- return $ MqttHookResponse "next"
 whAuthOnRegister _ _ = return $ MqttHookResponse "next"
 
 srvMqttWebHook :: Server MqttWebHook

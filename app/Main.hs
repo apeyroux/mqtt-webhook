@@ -28,24 +28,7 @@ import           System.FilePath
 
 import           MqttWebHook.Data
 
---- TEST IP
-newtype Ip = Ip {
-  ip :: String
-} deriving (Eq, Show, Generic)
-instance FromJSON Ip
-instance ToJSON Ip
-
-type IPifyAPI = QueryParam "format" String :> Get '[JSON] Ip
-
-ipifyAPI :: Proxy IPifyAPI
-ipifyAPI = Proxy
-
--- query ?format=json
-ipq :: ClientM Ip
-ipq = client ipifyAPI (Just "json")
--- END TEST
-
--- NEOTOKEN
+-- CLIENT NEOTOKEN
 data NeoTokenV1 =
   NeoTokenIsAuth {
     ntcrAuthentification :: Bool
@@ -64,10 +47,9 @@ type NeoTokenV1API = "token" :> "check" :> QueryParam "uid" Text :> QueryParam "
 neoTokenV1API :: Proxy NeoTokenV1API
 neoTokenV1API = Proxy
 
--- query ?format=json
 clientNeotoken :: Maybe Text -> Maybe Text -> ClientM NeoTokenV1
 clientNeotoken = client neoTokenV1API
--- END NEOTOKEN
+-- END CLIENT NEOTOKEN
 
 type IMEI = Text
 type IdTel = Text
@@ -93,8 +75,8 @@ mqttWebHookAPI :: Proxy MqttWebHook
 mqttWebHookAPI = Proxy
 
 whAuthOnSubscribe :: Maybe Text -> MqttSubscribe -> Handler MqttHookResponse
-whAuthOnSubscribe (Just "auth_on_subscriber") _ = return $ MqttHookResponse "on_sub"
-whAuthOnSubscribe _ _ = return $ MqttHookResponse "on_sub_bad"
+whAuthOnSubscribe (Just "auth_on_subscriber") _ = return MqttHookResponseOk
+whAuthOnSubscribe _ _ = return MqttHookResponseNext
 
 whAuthOnRegister :: Maybe Text -> MqttClient -> Handler MqttHookResponse
 whAuthOnRegister (Just "auth_on_register") c = 
@@ -106,33 +88,28 @@ whAuthOnRegister (Just "auth_on_register") c =
         managerNeoToken <- newManager defaultManagerSettings
         r <- runClientM (clientNeotoken (Just uid) (Just token)) (mkClientEnv managerNeoToken (BaseUrl Http "127.0.0.1" 8081 ""))
         case r of
-          Left e -> return $ MqttHookResponseNotAllowed $ T.pack $ show e
-          Right t -> return $ MqttHookResponseOk $ T.pack $ show t
+          Left e -> return MqttHookResponseNotAllowed
+          Right t -> return MqttHookResponseOk
     Application -> do
       liftIO $ print "hello application"
-      return $ MqttHookResponse "ok"
-    Ident imei _ -> 
+      return MqttHookResponseOk
+    Ident imei _ -> do
       -- EXEMPLE POUR ALLER CHERCHER UN WS EXT (NeoToken)
-      liftIO $ do
-        print $ "IDENT on_regiserer de " <> imei
-        manager' <- newManager defaultManagerSettings
-        r <- runClientM ipq (mkClientEnv manager' (BaseUrl Http "api.ipify.org" 80 ""))
-        case r of
-          Left e -> return $ MqttHookResponse (T.pack $ show e)
-          Right (Ip ip) -> return $ MqttHookResponse (T.pack ip)
+      liftIO $ print $ "IDENT on_regiserer de " <> imei
+      return MqttHookResponseOk
     Auth -> do
       liftIO $ do
         print "AUTH on_regiserer"
         print "TODO: Mettre dans un redis une clef login avec value neotoken et une ttl. si ttl alors 401"
         print c
-      return $ MqttHookResponse "ok"
+      return MqttHookResponseOk
     _ -> do
       liftIO $ do
         print "NO AUTH"
         print c
       throwError err401
       -- return $ MqttHookResponse "next"
-whAuthOnRegister _ _ = return $ MqttHookResponse "next"
+whAuthOnRegister _ _ = return MqttHookResponseOk
 
 srvMqttWebHook :: Server MqttWebHook
 srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe

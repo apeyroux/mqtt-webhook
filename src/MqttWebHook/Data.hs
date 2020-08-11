@@ -9,10 +9,11 @@ module MqttWebHook.Data (
   , MqttHookResponse (..)
   ) where
 
-import           Data.Aeson
-import           Data.Text (Text)
-import           Data.Text as T
-import           GHC.Generics
+import Data.Aeson
+import Data.HashMap.Strict
+import Data.Text (Text)
+import Data.Text as T
+import GHC.Generics
 
 data MqttClient = MqttClient {
   mcUsername :: Text
@@ -38,13 +39,21 @@ instance FromJSON MqttSubscribe where
         <$> v .: "username"
         <*> v .: "client_id"
 
-data MqttHookResponse = MqttHookResponseOk {
-  mhrResultOk :: Text
-  }
-  | MqttHookResponseNotAllowed {
-    mhrResultKo :: Text
-  } deriving (Generic, Show)
+data MqttHookResponse = MqttHookResponseOk
+  | MqttHookResponseNotAllowed
+  | MqttHookResponseNext
+  deriving (Generic, Show)
 
 instance ToJSON MqttHookResponse where
-  toJSON (MqttHookResponseOk msg) = object ["result" .= msg]
-  toJSON (MqttHookResponseNotAllowed msg) = object ["result" .= msg]
+  toJSON MqttHookResponseOk = Object (Data.HashMap.Strict.fromList [("result", String "ok")])
+  toJSON MqttHookResponseNotAllowed = Object
+        (Data.HashMap.Strict.fromList
+                [ ( "result"
+                  , Object
+                          (Data.HashMap.Strict.fromList
+                                  [("error", String "not_allowed")]
+                          )
+                  )
+                ]
+        )
+  toJSON MqttHookResponseNext = Object (Data.HashMap.Strict.fromList [("result", String "next")])

@@ -59,7 +59,7 @@ type TContent = Text
 data Authentification = Auth | NeoToken IMEI IdTel TUid TContent  | Ident IMEI IdTel | Application | Anonymous deriving Show
 
 type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
-  :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse
+              :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse
 
 mc2auth :: MqttClient -> Authentification
 mc2auth c = case splitOn ":" (mcUsername c) of
@@ -75,8 +75,12 @@ mqttWebHookAPI :: Proxy MqttWebHook
 mqttWebHookAPI = Proxy
 
 whAuthOnSubscribe :: Maybe Text -> MqttSubscribe -> Handler MqttHookResponse
-whAuthOnSubscribe (Just "auth_on_subscriber") _ = return MqttHookResponseOk
-whAuthOnSubscribe _ _ = return MqttHookResponseNext
+whAuthOnSubscribe (Just "auth_on_subscriber") ms = do
+  liftIO $ do
+    print $ msId ms
+    print $ msUsername ms
+  return MqttHookResponseNext
+whAuthOnSubscribe _ _ = return MqttHookResponseNext 
 
 whAuthOnRegister :: Maybe Text -> MqttClient -> Handler MqttHookResponse
 whAuthOnRegister (Just "auth_on_register") c = 
@@ -109,7 +113,7 @@ whAuthOnRegister (Just "auth_on_register") c =
         print c
       throwError err401
       -- return $ MqttHookResponse "next"
-whAuthOnRegister _ _ = return MqttHookResponseOk
+whAuthOnRegister _ _ = return MqttHookResponseNext
 
 srvMqttWebHook :: Server MqttWebHook
 srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe

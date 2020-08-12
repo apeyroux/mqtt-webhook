@@ -25,21 +25,37 @@ data MqttHookQuery = MqttClient {
   , msId :: Text
   , msMountpoint :: Text
   , msTopics :: [Topic]
+} | MqttPublish {
+  mpUsername :: Text
+  , mpId :: Text
+  , mpMountpoint :: Text
+  , mpQos :: Int
+  , mpTopic :: Text
+  , mpPayload :: Text
+  , mpRetain :: Bool
 } deriving (Generic, Show)
 
 instance ToJSON MqttHookQuery
 instance FromJSON MqttHookQuery where
-  parseJSON (Object v) = parseSub <|> parseClient
+  parseJSON (Object v) = parsePublish <|> parseSub <|> parseClient
     where
-      parseSub =MqttSubscribe
-          <$> v .: "username"
-          <*> v .: "client_id"
-          <*> v .: "mountpoint"
-          <*> v .: "topics"
+      parseSub = MqttSubscribe
+        <$> v .: "username"
+        <*> v .: "client_id"
+        <*> v .: "mountpoint"
+        <*> v .: "topics"
       parseClient = MqttClient
-           <$> v .: "username"
-           <*> v .:? "password"
-           <*> v .: "client_id"
+        <$> v .: "username"
+        <*> v .:? "password"
+        <*> v .: "client_id"
+      parsePublish = MqttPublish
+        <$> v .: "username"
+        <*> v .: "client_id"
+        <*> v .: "mountpoint"
+        <*> v .: "qos"
+        <*> v .: "topic"
+        <*> v .: "payload"
+        <*> v .: "retain"
 
 data Topic = Topic {
   topicPath :: Text

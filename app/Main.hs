@@ -106,6 +106,16 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) =
 wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
   liftIO $ putStrLn $ "Subscribe de " <> T.unpack user <> " a " <> show topics
   return MqttHookResponseOk
+wh (Just "auth_on_publish") p@(MqttPublish user uid _ _ topic payload _) = do
+  liftIO $ do
+    putStrLn $ "Publish de " <> T.unpack user <> " dans " <> T.unpack topic
+    print p
+  return MqttHookResponseOk
+wh (Just "auth_on_publish") p = do
+  liftIO $ do
+    print "PUB"
+    print p
+  return MqttHookResponseOk
 wh h q = do
   liftIO $ do
     print h

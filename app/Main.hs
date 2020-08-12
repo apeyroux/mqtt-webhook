@@ -30,12 +30,15 @@ import           Servant.Client
 import           Servant.PY
 import           System.FilePath
 
+import           Control.Monad.Trans.Reader
+
 import           MqttWebHook.Data
 
 
 -- CONFIG
 data Configuration = Configuration {
   cfgListenPort :: Int
+  , cfgEkgListenPort :: Int
   , cfgNeoTokenBaseURL :: Text
   , cfgNeoTokenPort :: Int
   , cfgUsers :: [User]
@@ -144,11 +147,18 @@ wh h q = do
 srvMqttWebHook :: Server MqttWebHook
 srvMqttWebHook = wh
 
-appMqttWebHook :: IO Application
+appMqttWebHook :: ReaderT Configuration IO Application
 appMqttWebHook = do
-  monitorEndpoints' <- monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" 8000)
+  cfg <- ask
+  monitorEndpoints' <- liftIO $ monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" (cfgEkgListenPort cfg))
   return $ monitorEndpoints' (serve mqttWebHookAPI srvMqttWebHook)
   -- return $ serve mqttWebHookAPI srvMqttWebHook
+
+
+testReader :: ReaderT Configuration IO ()
+testReader = do
+  cfg <- ask
+  liftIO $ print cfg
 
 main :: IO ()
 main = do
@@ -159,16 +169,18 @@ main = do
     [cfgFile] -> do
       cfgraw <- B.readFile cfgFile
       case decode cfgraw :: Maybe Configuration of
-        Just c -> print c
+        Just c -> do
+          print c
+          runReaderT testReader c
+          putStrLn "write python sample ..."
+          writePythonForAPI mqttWebHookAPI requests (result </> "api.py")
+          putStrLn "starting mqtt hook listener ..."
+          withStdoutLogger $ \appLogger -> do
+            let settings = setHost "0.0.0.0" $ setPort 8080 $ setLogger appLogger defaultSettings
+            runReaderT appMqttWebHook c >>= runSettings settings
         Nothing -> do
-          putStrLn "prob de code cfg"
+          putStrLn "Je ne comprend pas le fichier de configuration."
           exitFailure
-      putStrLn "write python sample ..."
-      writePythonForAPI mqttWebHookAPI requests (result </> "api.py")
-      putStrLn "starting mqtt hook listener ..."
-      withStdoutLogger $ \appLogger -> do
-        let settings = setHost "0.0.0.0" $ setPort 8080 $ setLogger appLogger defaultSettings
-        appMqttWebHook >>= runSettings settings
     _ -> putStrLn "usage: mqtt-webhook ./path/to/config.json"
 
   where

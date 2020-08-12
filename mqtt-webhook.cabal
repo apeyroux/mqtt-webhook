@@ -65,5 +65,6 @@ executable mqtt-webhook
                      , unordered-containers
                      , mqtt-webhook
                      , bytestring
+                     , transformers
   hs-source-dirs:      app
   default-language:    Haskell2010

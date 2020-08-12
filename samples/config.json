@@ -1,4 +1,6 @@
 {
+    "cfgListenPort": 8080,
+    "cfgEkgListenPort": 8001,
     "cfgNeoTokenBaseURL": "127.0.0.1",
     "cfgNeoTokenPort": 8081,
     "cfgUsers": [
@@ -7,6 +9,5 @@
             "uPassword": "passwd",
             "uCanWip": false
         }
-    ],
-    "cfgListenPort": 8080
+    ]
 }

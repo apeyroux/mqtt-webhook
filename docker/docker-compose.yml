@@ -1,0 +1,18 @@
+version: '3'
+services:
+  mqtt:
+    image: erlio/docker-vernemq
+    environment:
+      - DOCKER_VERNEMQ_ACCEPT_EULA=yes
+      - DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH_PUB_M5__ENDPOINT=http://242197c71c1a.eu.ngrok.io/auth
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH_PUB_M5__HOOK=auth_on_publish_m5
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH_SUB__ENDPOINT=http://242197c71c1a.eu.ngrok.io/auth
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH_SUB__HOOK=auth_on_subscribe
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH_PUB__ENDPOINT=http://242197c71c1a.eu.ngrok.io/auth
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH_PUB__HOOK=auth_on_publish
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH__ENDPOINT=http://242197c71c1a.eu.ngrok.io/auth
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__WHLABO_AUTH__HOOK=auth_on_register
+      - DOCKER_VERNEMQ_PLUGINS__VMQ_ACL=off
+    ports:
+      - 1883:1883

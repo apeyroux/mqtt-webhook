@@ -3,10 +3,11 @@
 ## Exemple
 
 ``` shell
-curl -H "vernemq-hook: auth_on_register" -H "Content-Type: application/json" -v -d '{"username": "alexandre.px", "client_id": "XXXXX1"}' -XPOST http://10.227.193.18/ifup
+curl -H "vernemq-hook: auth_on_register" -H "Content-Type: application/json" -v -d '{"username": "token:imei:idetel:uid:ok", "client_id": "XXXXX1"}' -XPOST http://127.0.0.1:8080/auth
 
-curl -H "vernemq-hook: auth_on_register" -H "Content-Type: application/json" -v -d '{"username": "token:imei:idetel:uid:token", "client_id
-": "XXXXX1"}' -XPOST http://127.0.0.1:8080/auth
+curl -H "vernemq-hook: auth_on_subscribe" -H "Content-Type: application/json" -d '{"username":"alex", "client_id": "ok", "mountpoint": "ok", "topics":[{"topic": "a/b", "qos": 1}]}' -v -XPOST http://127.0.0.1:8080/auth
+
+curl -H "vernemq-hook: auth_on_publish" -H "Content-Type: application/json" -v -d '{ "username": "username", "client_id": "clientid", "mountpoint": "", "qos": 1, "topic": "a/b", "payload": "hello", "retain": false }' -XPOST http://127.0.0.1:8080/auth
 ```
 
 ## Build with Nix & Proxy

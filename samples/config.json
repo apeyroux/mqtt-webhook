@@ -1,4 +1,5 @@
 {
+    "cfgDebug": true,
     "cfgListenPort": 8080,
     "cfgEkgListenPort": 8001,
     "cfgNeoTokenBaseURL": "127.0.0.1",

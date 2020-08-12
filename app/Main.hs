@@ -6,6 +6,7 @@
 module Main where
 
 import           Basement.String (isInfixOf)
+import           Control.Monad (when)
 import           Control.Monad.Trans (liftIO)
 import           Control.Monad.Trans.Reader
 import           Data.Aeson
@@ -35,12 +36,14 @@ import qualified System.Remote.Monitoring as EKG
 
 -- CONFIG
 data Configuration = Configuration {
-  cfgListenPort :: Int
+  cfgDebug :: Bool
+  , cfgListenPort :: Int
   , cfgEkgListenPort :: Int
   , cfgNeoTokenBaseURL :: Text
   , cfgNeoTokenPort :: Int
   , cfgUsers :: [User]
 } deriving (Generic, Show)
+
 data User = User {
   uLogin :: Text
   , uPassword :: Text
@@ -104,45 +107,48 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) = do
   cfg <- ask
   case mc2auth c (cfgUsers cfg) of
     NeoToken imei idtel uid token -> do
-      cfg <- ask
-      liftIO $ print cfg
       -- Check d'un NeoToken
-      liftIO $ do
-        print $ "IDENT d'un token " <> token
+      when (cfgDebug cfg) $ liftIO $ print $ "IDENT d'un token " <> token
+      liftIO $ do 
         managerNeoToken <- newManager defaultManagerSettings
-        r <- runClientM (clientNeotoken (Just uid) (Just token)) (mkClientEnv managerNeoToken (BaseUrl Http "127.0.0.1" 8081 ""))
+        r <- runClientM
+          (clientNeotoken (Just uid) (Just token))
+          (mkClientEnv managerNeoToken (BaseUrl Http (T.unpack $ cfgNeoTokenBaseURL cfg) (cfgNeoTokenPort cfg) ""))
         case r of
           Left e -> return MqttHookResponseNotAllowed
           Right t -> return MqttHookResponseOk
     Application -> do
-      liftIO $ print "hello application"
+      when (cfgDebug cfg) $ liftIO $ print "hello application"
       return MqttHookResponseOk
     Ident imei _ -> do
       -- EXEMPLE POUR ALLER CHERCHER UN WS EXT (NeoToken)
-      liftIO $ print $ "IDENT on_regiserer de " <> imei
+      when (cfgDebug cfg) $ liftIO $ print $ "IDENT on_regiserer de " <> imei
       return MqttHookResponseOk
     Auth -> do
-      liftIO $ do
+      when (cfgDebug cfg) $ liftIO $ do
         print "AUTH on_regiserer"
         print "TODO: Mettre dans un redis une clef login avec value neotoken et une ttl. si ttl alors 401"
         print "ok"
       return MqttHookResponseOk
     Anonymous -> do
-      liftIO $
+      when (cfgDebug cfg) $ liftIO $
         putStrLn $ "ANONYMOUS ! (" <> T.unpack uname <> ")"
       throwError err401
 wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
-  liftIO $ putStrLn $ "Subscribe de " <> T.unpack user <> " a " <> show topics
+  cfg <- ask
+  when (cfgDebug cfg) $ liftIO $ putStrLn $ "Subscribe de " <> T.unpack user <> " a " <> show topics
   return MqttHookResponseOk
 wh (Just "auth_on_publish") p@(MqttPublish user uid _ _ topic payload _) = 
   -- WIP INSTRUCTION
   if T.isInfixOf "wip" topic then canWip user topic else return MqttHookResponseOk
   -- END WIP INSTRUCTION
 wh h q = do
-  liftIO $ do
-    print "je ne comprend rien ..."
-    print h
-    print q
+  cfg <- ask
+  when (cfgDebug cfg) $
+    liftIO $ do
+      print "je ne comprend rien ..."
+      print h
+      print q
   return MqttHookResponseNext
 
 canWip :: Text -> Text -> AppM MqttHookResponse

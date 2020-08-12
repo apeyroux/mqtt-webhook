@@ -104,7 +104,7 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) =
         print "ok"
       throwError err401
 wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
-  liftIO $ print s
+  liftIO $ putStrLn $ "Subscribe de " <> T.unpack user <> " a " <> show topics
   return MqttHookResponseOk
 wh h q = do
   liftIO $ do

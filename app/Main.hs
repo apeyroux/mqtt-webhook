@@ -58,11 +58,10 @@ type TContent = Text
 
 data Authentification = Auth | NeoToken IMEI IdTel TUid TContent  | Ident IMEI IdTel | Application | Anonymous deriving Show
 
-type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttClient :> Post '[JSON] MqttHookResponse
-              :<|> "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttSubscribe :> Post '[JSON] MqttHookResponse
+type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttHookQuery :> Post '[JSON] MqttHookResponse
 
-mc2auth :: MqttClient -> Authentification
-mc2auth c = case splitOn ":" (mcUsername c) of
+mc2auth :: MqttHookQuery -> Authentification
+mc2auth c@(MqttClient uname _ _) = case splitOn ":" uname of
   ["neoparc"] -> case mcPassword c of
     Just "neoparc" -> Application
     _ ->  Anonymous
@@ -74,26 +73,18 @@ mc2auth c = case splitOn ":" (mcUsername c) of
 mqttWebHookAPI :: Proxy MqttWebHook
 mqttWebHookAPI = Proxy
 
-whAuthOnSubscribe :: Maybe Text -> MqttSubscribe -> Handler MqttHookResponse
-whAuthOnSubscribe (Just "auth_on_subscriber") ms = do
-  liftIO $ do
-    print $ msId ms
-    print $ msUsername ms
-  return MqttHookResponseNext
-whAuthOnSubscribe _ _ = return MqttHookResponseNext 
-
-whAuthOnRegister :: Maybe Text -> MqttClient -> Handler MqttHookResponse
-whAuthOnRegister (Just "auth_on_register") c = 
+wh :: Maybe Text -> MqttHookQuery -> Handler MqttHookResponse
+wh (Just "auth_on_register") c@(MqttClient uname _ _) =
   case mc2auth c of
     NeoToken imei idtel uid token ->
       -- Check d'un NeoToken
       liftIO $ do
-        print $ "IDENT d'un token " <> token
-        managerNeoToken <- newManager defaultManagerSettings
-        r <- runClientM (clientNeotoken (Just uid) (Just token)) (mkClientEnv managerNeoToken (BaseUrl Http "127.0.0.1" 8081 ""))
-        case r of
-          Left e -> return MqttHookResponseNotAllowed
-          Right t -> return MqttHookResponseOk
+      print $ "IDENT d'un token " <> token
+      managerNeoToken <- newManager defaultManagerSettings
+      r <- runClientM (clientNeotoken (Just uid) (Just token)) (mkClientEnv managerNeoToken (BaseUrl Http "127.0.0.1" 8081 ""))
+      case r of
+        Left e -> return MqttHookResponseNotAllowed
+        Right t -> return MqttHookResponseOk
     Application -> do
       liftIO $ print "hello application"
       return MqttHookResponseOk
@@ -105,18 +96,24 @@ whAuthOnRegister (Just "auth_on_register") c =
       liftIO $ do
         print "AUTH on_regiserer"
         print "TODO: Mettre dans un redis une clef login avec value neotoken et une ttl. si ttl alors 401"
-        print c
+        print "ok"
       return MqttHookResponseOk
     _ -> do
       liftIO $ do
         print "NO AUTH"
-        print c
+        print "ok"
       throwError err401
-      -- return $ MqttHookResponse "next"
-whAuthOnRegister _ _ = return MqttHookResponseNext
+wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
+  liftIO $ print s
+  return MqttHookResponseOk
+wh h q = do
+  liftIO $ do
+    print h
+    print q
+  return MqttHookResponseNext
 
 srvMqttWebHook :: Server MqttWebHook
-srvMqttWebHook = whAuthOnRegister :<|> whAuthOnSubscribe
+srvMqttWebHook = wh
 
 appMqttWebHook :: IO Application
 appMqttWebHook = do

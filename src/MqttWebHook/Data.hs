@@ -4,17 +4,42 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module MqttWebHook.Data (
-  MqttClient (..)
-  , MqttSubscribe (..)
+  MqttHookQuery (..)
   , MqttHookResponse (..)
   , Topic (..)
   ) where
 
+import Control.Applicative
 import Data.Aeson
 import Data.HashMap.Strict
 import Data.Text (Text)
 import Data.Text as T
 import GHC.Generics
+
+data MqttHookQuery = MqttClient {
+  mcUsername :: Text
+  , mcPassword :: Maybe Text
+  , mcId :: Text
+} | MqttSubscribe {
+  msUsername :: Text
+  , msId :: Text
+  , msMountpoint :: Text
+  , msTopics :: [Topic]
+} deriving (Generic, Show)
+
+instance ToJSON MqttHookQuery
+instance FromJSON MqttHookQuery where
+  parseJSON (Object v) = parseSub <|> parseClient
+    where
+      parseSub =MqttSubscribe
+          <$> v .: "username"
+          <*> v .: "client_id"
+          <*> v .: "mountpoint"
+          <*> v .: "topics"
+      parseClient = MqttClient
+           <$> v .: "username"
+           <*> v .:? "password"
+           <*> v .: "client_id"
 
 data Topic = Topic {
   topicPath :: Text
@@ -26,34 +51,6 @@ instance FromJSON Topic where
   parseJSON (Object v) = Topic
         <$> v .: "topic"
         <*> v .: "qos"
-
-data MqttClient = MqttClient {
-  mcUsername :: Text
-  , mcPassword :: Maybe Text
-  , mcId :: Text
-} deriving (Generic, Show)
-
-instance ToJSON MqttClient
-instance FromJSON MqttClient where
-  parseJSON (Object v) = MqttClient
-        <$> v .: "username"
-        <*> v .:? "password"
-        <*> v .: "client_id"
-
-data MqttSubscribe = MqttSubscribe {
-  msUsername :: Text
-  , msId :: Text
-  , msMountpoint :: Text
-  , msTopics :: [Topic]
-} deriving (Generic, Show)
-
-instance ToJSON MqttSubscribe
-instance FromJSON MqttSubscribe where
-  parseJSON (Object v) = MqttSubscribe
-        <$> v .: "username"
-        <*> v .: "client_id"
-        <*> v .: "mountpoint"
-        <*> v .: "topics"
 
 data MqttHookResponse = MqttHookResponseOk
   | MqttHookResponseNotAllowed

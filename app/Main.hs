@@ -165,7 +165,6 @@ appMqttWebHook = do
   cfg <- ask
   monitorEndpoints' <- liftIO $ monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" (cfgEkgListenPort cfg))
   return $ monitorEndpoints' (serve mqttWebHookAPI $ hoistServer mqttWebHookAPI (nt cfg) srvMqttWebHook)
-  -- return $ serve mqttWebHookAPI srvMqttWebHook
   where
     nt :: Configuration -> AppM a -> Handler a
     nt s x = runReaderT x s

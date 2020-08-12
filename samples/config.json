@@ -1,0 +1,12 @@
+{
+    "cfgNeoTokenBaseURL": "127.0.0.1",
+    "cfgNeoTokenPort": 8081,
+    "cfgUsers": [
+        {
+            "uLogin": "login",
+            "uPassword": "passwd",
+            "uCanWip": false
+        }
+    ],
+    "cfgListenPort": 8080
+}

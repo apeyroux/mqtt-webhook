@@ -7,6 +7,7 @@ module Main where
 
 import           Control.Monad.Trans (liftIO)
 import           Data.Aeson
+import qualified Data.ByteString.Lazy as B
 import           Data.Text (Text)
 import           Data.Text as T
 import           GHC.Generics
@@ -16,6 +17,9 @@ import           Network.Wai.Logger (withStdoutLogger)
 import           Servant
 import           Servant.API
 import           Servant.Ekg
+import           System.Environment
+import           System.Exit
+
 import qualified System.Remote.Monitoring as EKG
 import           System.Metrics
 
@@ -27,6 +31,27 @@ import           Servant.PY
 import           System.FilePath
 
 import           MqttWebHook.Data
+
+
+-- CONFIG
+data Configuration = Configuration {
+  cfgListenPort :: Int
+  , cfgNeoTokenBaseURL :: Text
+  , cfgNeoTokenPort :: Int
+  , cfgUsers :: [User]
+} deriving (Generic, Show)
+data User = User {
+  uLogin :: Text
+  , uPassword :: Text
+  , uCanWip :: Bool
+} deriving (Generic, Show)
+
+instance FromJSON Configuration
+instance FromJSON User
+
+instance ToJSON Configuration
+instance ToJSON User
+-- ENF CONFIG
 
 -- CLIENT NEOTOKEN
 data NeoTokenV1 =
@@ -127,12 +152,25 @@ appMqttWebHook = do
 
 main :: IO ()
 main = do
-  putStrLn "write python sample ..."
-  writePythonForAPI mqttWebHookAPI requests (result </> "api.py")
-  putStrLn "starting mqtt hook listener ..."
-  withStdoutLogger $ \appLogger -> do
-    let settings = setHost "0.0.0.0" $ setPort 8080 $ setLogger appLogger defaultSettings
-    appMqttWebHook >>= runSettings settings
+
+  args <- getArgs
+
+  case args of
+    [cfgFile] -> do
+      cfgraw <- B.readFile cfgFile
+      case decode cfgraw :: Maybe Configuration of
+        Just c -> print c
+        Nothing -> do
+          putStrLn "prob de code cfg"
+          exitFailure
+      putStrLn "write python sample ..."
+      writePythonForAPI mqttWebHookAPI requests (result </> "api.py")
+      putStrLn "starting mqtt hook listener ..."
+      withStdoutLogger $ \appLogger -> do
+        let settings = setHost "0.0.0.0" $ setPort 8080 $ setLogger appLogger defaultSettings
+        appMqttWebHook >>= runSettings settings
+    _ -> putStrLn "usage: mqtt-webhook ./path/to/config.json"
+
   where
     result :: FilePath
     result = "samples"

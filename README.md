@@ -10,6 +10,11 @@ curl -H "vernemq-hook: auth_on_subscribe" -H "Content-Type: application/json" -d
 curl -H "vernemq-hook: auth_on_publish" -H "Content-Type: application/json" -v -d '{ "username": "username", "client_id": "clientid", "mountpoint": "", "qos": 1, "topic": "a/b", "payload": "hello", "retain": false }' -XPOST http://127.0.0.1:8080/auth
 ```
 
+``` shell
+mosquitto_sub -u "token:imei:idetel:uid:ok" -P 88mph -t test -d
+mosquitto_pub -u "token:imei:idetel:uid:ok" -P test -t test -m ok -d
+```
+
 ## Build with Nix & Proxy
 
 ``` bash

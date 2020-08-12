@@ -98,10 +98,9 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) =
         print "TODO: Mettre dans un redis une clef login avec value neotoken et une ttl. si ttl alors 401"
         print "ok"
       return MqttHookResponseOk
-    _ -> do
-      liftIO $ do
-        print "NO AUTH"
-        print "ok"
+    Anonymous -> do
+      liftIO $
+        putStrLn $ "ANONYMOUS ! (" <> T.unpack uname <> ")"
       throwError err401
 wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
   liftIO $ putStrLn $ "Subscribe de " <> T.unpack user <> " a " <> show topics
@@ -109,11 +108,6 @@ wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
 wh (Just "auth_on_publish") p@(MqttPublish user uid _ _ topic payload _) = do
   liftIO $ do
     putStrLn $ "Publish de " <> T.unpack user <> " dans " <> T.unpack topic
-    print p
-  return MqttHookResponseOk
-wh (Just "auth_on_publish") p = do
-  liftIO $ do
-    print "PUB"
     print p
   return MqttHookResponseOk
 wh h q = do

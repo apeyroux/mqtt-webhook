@@ -9,7 +9,12 @@ let
 
   haskellNix = import haskellNixSrc {};
 
-  all-hies = fetchTarball "https://github.com/infinisil/all-hies/archive/master.tar.gz";
+  all-hies = (import <nixpkgs> {}).fetchFromGitHub {
+    repo = "all-hies";
+    owner = "infinisil";
+    rev = "534ac517b386821b787d1edbd855b9966d0c0775"; # master 12082020
+    sha256 = "0bw1llpwxbh1dnrnbxkj2l0j58s523hjivszf827c3az5i4py1i2";
+  };
 
   pkgs = import haskellNix.sources.nixpkgs-2003 (haskellNix.nixpkgsArgs // {
     crossSystem = haskellNix.pkgs.lib.systems.examples.musl64;
@@ -36,45 +41,4 @@ in pkgs.haskell-nix.cabalProject {
       "--ghc-option=-optl=-L${pkgs.gmp6.override { withStatic = true; }}/lib"
       "--ghc-option=-optl=-L${pkgs.zlib.static}/lib"
     ];
-  modules = [
-    {
-      # Make Cabal reinstallable
-      nonReinstallablePkgs = [
-        "rts"
-        "ghc-heap"
-        "ghc-prim"
-        "integer-gmp"
-        "integer-simple"
-        "base"
-        "deepseq"
-        "array"
-        "ghc-boot-th"
-        "pretty"
-        "template-haskell"
-        "ghcjs-prim"
-        "ghcjs-th"
-        "ghc-boot"
-        "ghc"
-        "Win32"
-        "array"
-        "binary"
-        "bytestring"
-        "containers"
-        "directory"
-        "filepath"
-        "ghc-boot"
-        "ghc-compact"
-        "ghc-prim"
-        "hpc"
-        "mtl"
-        "parsec"
-        "process"
-        "text"
-        "time"
-        "transformers"
-        "unix"
-        "xhtml"
-        "terminfo"
-      ];
-    }];
 }

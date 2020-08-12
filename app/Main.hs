@@ -7,35 +7,30 @@ module Main where
 
 import           Basement.String (isInfixOf)
 import           Control.Monad.Trans (liftIO)
+import           Control.Monad.Trans.Reader
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as B
+import qualified Data.HashMap.Strict as M
+import           Data.List (find)
+import           Data.Proxy
 import           Data.Text (Text)
 import           Data.Text as T
-import Data.List (find)
 import           GHC.Generics
+import           MqttWebHook.Data
+import           Network.HTTP.Client (newManager, defaultManagerSettings)
 import           Network.Wai
 import           Network.Wai.Handler.Warp
 import           Network.Wai.Logger (withStdoutLogger)
 import           Servant
 import           Servant.API
+import           Servant.Client
 import           Servant.Ekg
+import           Servant.PY
 import           System.Environment
 import           System.Exit
-
-import qualified System.Remote.Monitoring as EKG
-import           System.Metrics
-
-import           Data.Proxy
-import           Network.HTTP.Client (newManager, defaultManagerSettings)
-import qualified Data.HashMap.Strict as M
-import           Servant.Client
-
-import           Servant.PY
 import           System.FilePath
-
-import           Control.Monad.Trans.Reader
-
-import           MqttWebHook.Data
+import           System.Metrics
+import qualified System.Remote.Monitoring as EKG
 
 
 -- CONFIG

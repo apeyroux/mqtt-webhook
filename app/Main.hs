@@ -98,6 +98,7 @@ mc2auth c@(MqttClient uname (Just mbPassword) _) users = case splitOn ":" uname 
               Just (User _ p _) -> if p == mbPassword then Application else Anonymous
               Nothing -> Anonymous
   _ -> Anonymous
+mc2auth (MqttClient _ Nothing _) _ = Anonymous -- si pas de password alors tu es anonymous
 
 mqttWebHookAPI :: Proxy MqttWebHook
 mqttWebHookAPI = Proxy
@@ -115,8 +116,12 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) = do
           (clientNeotoken (Just uid) (Just token))
           (mkClientEnv managerNeoToken (BaseUrl Http (T.unpack $ cfgNeoTokenBaseURL cfg) (cfgNeoTokenPort cfg) ""))
         case r of
-          Left e -> return MqttHookResponseNotAllowed
-          Right t -> return MqttHookResponseOk
+          Left e -> do
+            when (cfgDebug cfg) $ liftIO $ print e
+            return MqttHookResponseNotAllowed
+          Right t -> do
+            when (cfgDebug cfg) $ liftIO $ print t
+            return MqttHookResponseOk
     Application -> do
       when (cfgDebug cfg) $ liftIO $ print "hello application"
       return MqttHookResponseOk
@@ -132,7 +137,7 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) = do
       return MqttHookResponseOk
     Anonymous -> do
       when (cfgDebug cfg) $ liftIO $
-        putStrLn $ "ANONYMOUS ! (" <> T.unpack uname <> ")"
+        print $ "ANONYMOUS ! (" <> T.unpack uname <> ")"
       throwError err401
 wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
   cfg <- ask

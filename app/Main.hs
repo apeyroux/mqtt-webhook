@@ -101,18 +101,20 @@ mc2auth c@(MqttClient uname _ _) = case splitOn ":" uname of
 mqttWebHookAPI :: Proxy MqttWebHook
 mqttWebHookAPI = Proxy
 
-wh :: Maybe Text -> MqttHookQuery -> Handler MqttHookResponse
+wh :: Maybe Text -> MqttHookQuery -> AppM MqttHookResponse
 wh (Just "auth_on_register") c@(MqttClient uname _ _) =
   case mc2auth c of
-    NeoToken imei idtel uid token ->
+    NeoToken imei idtel uid token -> do
+      cfg <- ask
+      liftIO $ print cfg
       -- Check d'un NeoToken
       liftIO $ do
-      print $ "IDENT d'un token " <> token
-      managerNeoToken <- newManager defaultManagerSettings
-      r <- runClientM (clientNeotoken (Just uid) (Just token)) (mkClientEnv managerNeoToken (BaseUrl Http "127.0.0.1" 8081 ""))
-      case r of
-        Left e -> return MqttHookResponseNotAllowed
-        Right t -> return MqttHookResponseOk
+        print $ "IDENT d'un token " <> token
+        managerNeoToken <- newManager defaultManagerSettings
+        r <- runClientM (clientNeotoken (Just uid) (Just token)) (mkClientEnv managerNeoToken (BaseUrl Http "127.0.0.1" 8081 ""))
+        case r of
+          Left e -> return MqttHookResponseNotAllowed
+          Right t -> return MqttHookResponseOk
     Application -> do
       liftIO $ print "hello application"
       return MqttHookResponseOk
@@ -144,16 +146,20 @@ wh h q = do
     print q
   return MqttHookResponseNext
 
-srvMqttWebHook :: Server MqttWebHook
+srvMqttWebHook :: ServerT MqttWebHook AppM
 srvMqttWebHook = wh
+
+type AppM = ReaderT Configuration Handler
 
 appMqttWebHook :: ReaderT Configuration IO Application
 appMqttWebHook = do
   cfg <- ask
   monitorEndpoints' <- liftIO $ monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" (cfgEkgListenPort cfg))
-  return $ monitorEndpoints' (serve mqttWebHookAPI srvMqttWebHook)
+  return $ monitorEndpoints' (serve mqttWebHookAPI $ hoistServer mqttWebHookAPI (nt cfg) srvMqttWebHook)
   -- return $ serve mqttWebHookAPI srvMqttWebHook
-
+  where
+    nt :: Configuration -> AppM a -> Handler a
+    nt s x = runReaderT x s
 
 testReader :: ReaderT Configuration IO ()
 testReader = do

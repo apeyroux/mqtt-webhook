@@ -8,6 +8,11 @@
             "uLogin": "login",
             "uPassword": "passwd",
             "uCanWip": false
+        },
+	{
+            "uLogin": "wip",
+            "uPassword": "wip",
+            "uCanWip": true
         }
     ]
 }

@@ -5,11 +5,13 @@
 
 module Main where
 
+import           Basement.String (isInfixOf)
 import           Control.Monad.Trans (liftIO)
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as B
 import           Data.Text (Text)
 import           Data.Text as T
+import Data.List (find)
 import           GHC.Generics
 import           Network.Wai
 import           Network.Wai.Handler.Warp
@@ -25,6 +27,7 @@ import           System.Metrics
 
 import           Data.Proxy
 import           Network.HTTP.Client (newManager, defaultManagerSettings)
+import qualified Data.HashMap.Strict as M
 import           Servant.Client
 
 import           Servant.PY
@@ -83,27 +86,28 @@ type IMEI = Text
 type IdTel = Text
 type TUid = Text
 type TContent = Text
+type AppM = ReaderT Configuration Handler
+type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttHookQuery :> Post '[JSON] MqttHookResponse
 
 data Authentification = Auth | NeoToken IMEI IdTel TUid TContent  | Ident IMEI IdTel | Application | Anonymous deriving Show
 
-type MqttWebHook = "auth" :> Header "vernemq-hook" Text :> ReqBody '[JSON] MqttHookQuery :> Post '[JSON] MqttHookResponse
-
-mc2auth :: MqttHookQuery -> Authentification
-mc2auth c@(MqttClient uname _ _) = case splitOn ":" uname of
-  ["neoparc"] -> case mcPassword c of
-    Just "neoparc" -> Application
-    _ ->  Anonymous
+mc2auth :: MqttHookQuery -> [User] -> Authentification
+mc2auth c@(MqttClient uname (Just mbPassword) _) users = case splitOn ":" uname of
   ["token", imei, idtel, uid, token] -> NeoToken imei idtel uid token
   ["ident", imei, idtel] -> Ident imei idtel
   ["auth", _, _] -> Auth
+  [user] -> case Data.List.find (\u -> uLogin u == user) users of
+              Just (User _ p _) -> if p == mbPassword then Application else Anonymous
+              Nothing -> Anonymous
   _ -> Anonymous
 
 mqttWebHookAPI :: Proxy MqttWebHook
 mqttWebHookAPI = Proxy
 
 wh :: Maybe Text -> MqttHookQuery -> AppM MqttHookResponse
-wh (Just "auth_on_register") c@(MqttClient uname _ _) =
-  case mc2auth c of
+wh (Just "auth_on_register") c@(MqttClient uname _ _) = do
+  cfg <- ask
+  case mc2auth c (cfgUsers cfg) of
     NeoToken imei idtel uid token -> do
       cfg <- ask
       liftIO $ print cfg
@@ -135,21 +139,26 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) =
 wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
   liftIO $ putStrLn $ "Subscribe de " <> T.unpack user <> " a " <> show topics
   return MqttHookResponseOk
-wh (Just "auth_on_publish") p@(MqttPublish user uid _ _ topic payload _) = do
-  liftIO $ do
-    putStrLn $ "Publish de " <> T.unpack user <> " dans " <> T.unpack topic
-    print p
-  return MqttHookResponseOk
+wh (Just "auth_on_publish") p@(MqttPublish user uid _ _ topic payload _) = 
+  -- WIP INSTRUCTION
+  if T.isInfixOf "wip" topic then canWip user topic else return MqttHookResponseOk
+  -- END WIP INSTRUCTION
 wh h q = do
   liftIO $ do
+    print "je ne comprend rien ..."
     print h
     print q
   return MqttHookResponseNext
 
+canWip :: Text -> Text -> AppM MqttHookResponse
+canWip user topic = do
+  cfg <- ask
+  case Data.List.find (\u -> uLogin u == user) (cfgUsers cfg) of
+    Just (User _ _ canWip) -> if canWip then return MqttHookResponseOk else throwError err401
+    Nothing -> throwError err401
+
 srvMqttWebHook :: ServerT MqttWebHook AppM
 srvMqttWebHook = wh
-
-type AppM = ReaderT Configuration Handler
 
 appMqttWebHook :: ReaderT Configuration IO Application
 appMqttWebHook = do

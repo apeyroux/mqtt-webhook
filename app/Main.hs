@@ -16,6 +16,7 @@ import           Data.List (find)
 import           Data.Proxy
 import           Data.Text (Text)
 import           Data.Text as T
+import           Data.Text.Encoding (encodeUtf8)
 import           GHC.Generics
 import           MqttWebHook.Data
 import           Network.HTTP.Client (newManager, defaultManagerSettings)
@@ -38,6 +39,7 @@ import qualified System.Remote.Monitoring as EKG
 data Configuration = Configuration {
   cfgDebug :: Bool
   , cfgListenPort :: Int
+  , cfgEkgListenHost :: Text
   , cfgEkgListenPort :: Int
   , cfgNeoTokenBaseURL :: Text
   , cfgNeoTokenPort :: Int
@@ -167,7 +169,7 @@ srvMqttWebHook = wh
 appMqttWebHook :: ReaderT Configuration IO Application
 appMqttWebHook = do
   cfg <- ask
-  monitorEndpoints' <- liftIO $ monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer "0.0.0.0" (cfgEkgListenPort cfg))
+  monitorEndpoints' <- liftIO $ monitorEndpoints mqttWebHookAPI =<< (EKG.serverMetricStore <$> EKG.forkServer (encodeUtf8 $ cfgEkgListenHost cfg) (cfgEkgListenPort cfg))
   return $ monitorEndpoints' (serve mqttWebHookAPI $ hoistServer mqttWebHookAPI (nt cfg) srvMqttWebHook)
   where
     nt :: Configuration -> AppM a -> Handler a

@@ -109,7 +109,7 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) = do
   case mc2auth c (cfgUsers cfg) of
     NeoToken imei idtel uid token -> do
       -- Check d'un NeoToken
-      when (cfgDebug cfg) $ liftIO $ print $ "IDENT d'un token " <> token
+      when (cfgDebug cfg) $ liftIO $ print $ "on_regiserer [neotoken]:" <> show c
       liftIO $ do 
         managerNeoToken <- newManager defaultManagerSettings
         r <- runClientM
@@ -123,27 +123,25 @@ wh (Just "auth_on_register") c@(MqttClient uname _ _) = do
             when (cfgDebug cfg) $ liftIO $ print t
             return MqttHookResponseOk
     Application -> do
-      when (cfgDebug cfg) $ liftIO $ print "hello application"
+      when (cfgDebug cfg) $ liftIO $ print $ "on_regiserer [application]:" <> show c
       return MqttHookResponseOk
     Ident imei _ -> do
       -- EXEMPLE POUR ALLER CHERCHER UN WS EXT (NeoToken)
-      when (cfgDebug cfg) $ liftIO $ print $ "IDENT on_regiserer de " <> imei
+      when (cfgDebug cfg) $ liftIO $ print $ "on_regiserer [ident]:" <> show c
       return MqttHookResponseOk
     Auth -> do
-      when (cfgDebug cfg) $ liftIO $ do
-        print "AUTH on_regiserer"
-        print "TODO: Mettre dans un redis une clef login avec value neotoken et une ttl. si ttl alors 401"
-        print "ok"
+      when (cfgDebug cfg) $ liftIO $ print $ "on_regiserer [auth]:" <> show c
       return MqttHookResponseOk
     Anonymous -> do
-      when (cfgDebug cfg) $ liftIO $
-        print $ "ANONYMOUS ! (" <> T.unpack uname <> ")"
+      when (cfgDebug cfg) $ liftIO $ print $ "on_regiserer [anonymous]:" <> show c
       throwError err401
 wh (Just "auth_on_subscribe") s@(MqttSubscribe user uid mnt topics) = do
   cfg <- ask
-  when (cfgDebug cfg) $ liftIO $ putStrLn $ "Subscribe de " <> T.unpack user <> " a " <> show topics
+  when (cfgDebug cfg) $ liftIO $ putStrLn $ "auth_on_subscribe: " <> show s
   return MqttHookResponseOk
-wh (Just "auth_on_publish") p@(MqttPublish user uid _ _ topic payload _) = 
+wh (Just "auth_on_publish") p@(MqttPublish user uid _ _ topic payload _) = do
+  cfg <- ask
+  when (cfgDebug cfg) $ liftIO $ putStrLn $ "auth_on_publish:" <> show p
   -- WIP INSTRUCTION
   if T.isInfixOf "wip" topic then canWip user topic else return MqttHookResponseOk
   -- END WIP INSTRUCTION

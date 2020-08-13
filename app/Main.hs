@@ -192,8 +192,8 @@ main = do
         Just c -> do
           print c
           runReaderT testReader c
-          putStrLn "write python sample ..."
-          writePythonForAPI mqttWebHookAPI requests (result </> "api.py")
+          -- putStrLn "write python sample ..."
+          -- writePythonForAPI mqttWebHookAPI requests (result </> "api.py")
           putStrLn "starting mqtt hook listener ..."
           withStdoutLogger $ \appLogger -> do
             let settings = setHost "0.0.0.0" $ setPort 8080 $ setLogger appLogger defaultSettings

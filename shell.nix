@@ -1,13 +1,28 @@
-((import ./.).mqtt-webhook.components.exes.mqtt-webhook // {
-  env = (import ./.).shellFor {
-    packages = p: [ p.mqtt-webhook ];
+{ pkgs ? import <nixpkgs> {} }:
+
+let
+  hsPkgs = import ./default.nix { inherit pkgs; };
+in
+  hsPkgs.shellFor {
+    # Include only the *local* packages of your project.
+    packages = ps: with ps; [
+      mqtt-webhook
+    ];
+
+    # Builds a Hoogle documentation index of all dependencies,
+    # and provides a "hoogle" command to search the index.
+    withHoogle = true;
+
+    # You might want some extra tools in the shell (optional).
+
+    # Some common tools can be added with the `tools` argument
+    tools = { cabal = "3.2.0.0"; hlint = "2.2.11"; hie = "unstable"; };
+    # See overlays/tools.nix for more details
+
+    # Some you may need to get some other way.
+    buildInputs = with pkgs.haskellPackages; [ ghcid ];
+
+    # Prevents cabal from choosing alternate plans, so that
+    # *all* dependencies are provided by Nix.
     exactDeps = true;
-    tools = {
-      cabal = "3.2.0.0";
-      hie = "unstable";
-    };
-    shellHook = ''
-      export HIE_HOOGLE_DATABASE=$(realpath "$(dirname "$(realpath "$(which hoogle)")")/../share/doc/hoogle/default.hoo")
-    '';
-  };
-}).env
+  }

@@ -1,44 +1,36 @@
-let
+{ # Fetch the latest haskell.nix and import its default.nix
+  haskellNix ? import (builtins.fetchTarball "https://github.com/input-output-hk/haskell.nix/archive/master.tar.gz") {}
 
-  haskellNixSrc = (import <nixpkgs> {}).fetchFromGitHub {
-    repo = "haskell.nix";
-    owner = "input-output-hk";
-    rev = "c7c7d6c43af27a632f16e631202eb83ac3c047c3"; # master 11082020
-    sha256 = "0xrfl0zwf98cyv6px0awblhff97vjv19a5mdvs6l98769qgh4558";
-  };
+# haskell.nix provides access to the nixpkgs pins which are used by our CI,
+# hence you will be more likely to get cache hits when using these.
+# But you can also just use your own, e.g. '<nixpkgs>'.
+, nixpkgsSrc ? haskellNix.sources.nixpkgs-2003
 
-  haskellNix = import haskellNixSrc {};
+# haskell.nix provides some arguments to be passed to nixpkgs, including some
+# patches and also the haskell.nix functionality itself as an overlay.
+, nixpkgsArgs ? haskellNix.nixpkgsArgs
 
-  all-hies = (import <nixpkgs> {}).fetchFromGitHub {
-    repo = "all-hies";
-    owner = "infinisil";
-    rev = "534ac517b386821b787d1edbd855b9966d0c0775"; # master 12082020
-    sha256 = "0bw1llpwxbh1dnrnbxkj2l0j58s523hjivszf827c3az5i4py1i2";
-  };
+# import nixpkgs with overlays
+, pkgs ? import nixpkgsSrc nixpkgsArgs
+}: let
+
+  # hie
+  all-hies = fetchTarball "https://github.com/infinisil/all-hies/archive/master.tar.gz";
 
   pkgs = import haskellNix.sources.nixpkgs-2003 (haskellNix.nixpkgsArgs // {
-    crossSystem = haskellNix.pkgs.lib.systems.examples.musl64;
     overlays = haskellNix.nixpkgsArgs.overlays ++ [
       (import all-hies {}).overlay
       (import ./nix/custom-overlay.nix)
     ];
   });
 
-in pkgs.haskell-nix.cabalProject {
-  name = "mqtt-webhook";
+in pkgs.haskell-nix.project {
+  # 'cleanGit' cleans a source directory based on the files known by git
   src = pkgs.haskell-nix.haskellLib.cleanGit {
     name = "mqtt-webhook";
     src = ./.;
   };
-  # ghc = pkgs.haskell-nix.compiler.ghc865;
-  compiler-nix-name = "ghc865";
-  configureFlags =
-    pkgs.lib.optionals pkgs.hostPlatform.isMusl [
-      "--disable-executable-dynamic"
-      "--disable-shared"
-      "--ghc-option=-optl=-pthread"
-      "--ghc-option=-optl=-static"
-      "--ghc-option=-optl=-L${pkgs.gmp6.override { withStatic = true; }}/lib"
-      "--ghc-option=-optl=-L${pkgs.zlib.static}/lib"
-    ];
+  index-state	= "2020-08-20T00:00:00Z";
+  # For `cabal.project` based projects specify the GHC version to use.
+  compiler-nix-name = "ghc865"; # Not used for `stack.yaml` based projects.
 }
